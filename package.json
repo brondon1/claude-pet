@@ -1,0 +1,29 @@
+{
+  "name": "claude-pet",
+  "version": "0.1.0",
+  "description": "住在桌面上的 Claude 小分身：待机、溜达、拖拽甩抛，跟着 Claude Code 一起思考、敲代码、等你批准、庆祝收工，还能陪你聊两句。",
+  "type": "module",
+  "main": "src/main/main.js",
+  "bin": {
+    "claude-pet": "scripts/start.mjs"
+  },
+  "scripts": {
+    "start": "node scripts/start.mjs",
+    "hooks:install": "node scripts/hooks.mjs install",
+    "hooks:uninstall": "node scripts/hooks.mjs uninstall",
+    "test": "node --test test/*.test.mjs",
+    "test:py": "python test/test_make_video.py",
+    "sprite": "python scripts/make_sprite.py",
+    "video": "python scripts/make_video.py"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0"
+  },
+  "optionalDependencies": {
+    "electron": "^43.3.0"
+  }
+}

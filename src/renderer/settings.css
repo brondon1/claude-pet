@@ -1,0 +1,212 @@
+/* claude-pet 设置窗口 */
+:root {
+  --orange: #e8692a;
+  --orange-soft: #fdeee4;
+  --ink: #3d2a22;
+  --muted: #8a7468;
+  --line: #ecdccf;
+  --bg: #fffaf5;
+  --card: #ffffff;
+  --danger: #d64545;
+  --ok: #2e9e5b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #f6e8dc;
+    --muted: #b8a294;
+    --line: #4a3a33;
+    --bg: #221a17;
+    --card: #2c221e;
+    --orange-soft: #3f2a20;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  padding: 20px 24px 80px;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.5 'Microsoft YaHei UI', 'PingFang SC', system-ui, sans-serif;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+h1 {
+  margin: 0;
+  font-size: 20px;
+}
+h2 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.card.inner {
+  margin: 12px 0 0;
+  background: transparent;
+}
+.row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tabs button {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+.tabs button.active {
+  border-color: var(--orange);
+  background: var(--orange-soft);
+}
+.tabs button.add {
+  border-style: dashed;
+  color: var(--muted);
+}
+.grid3,
+.grid2 {
+  display: grid;
+  gap: 12px 16px;
+  margin-bottom: 12px;
+}
+.grid3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.grid2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (max-width: 640px) {
+  .grid3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+label.block {
+  margin-top: 4px;
+}
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+textarea {
+  resize: vertical;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--orange-soft);
+  border-color: var(--orange);
+}
+.checks {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.checks label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 14px;
+}
+.checks input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--orange);
+}
+.hint {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: help;
+}
+button.primary,
+button.danger,
+button.ghost {
+  font: inherit;
+  border-radius: 8px;
+  padding: 6px 16px;
+  cursor: pointer;
+}
+button.primary {
+  background: var(--orange);
+  color: #fff;
+  border: 0;
+}
+button.danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+button.danger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+button.ghost {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+#status {
+  font-size: 13px;
+}
+#status.ok {
+  color: var(--ok);
+}
+#status.err {
+  color: var(--danger);
+}

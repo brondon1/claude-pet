@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>claude-pet 设置</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <header>
+      <h1>桌宠设置</h1>
+      <button id="openFile" class="ghost" type="button">打开配置文件</button>
+    </header>
+
+    <section class="card">
+      <h2>宠物列表 <span class="hint" title="可以同时放好几只宠物在桌面上，每只都能单独设置">?</span></h2>
+      <div id="tabs" class="tabs"></div>
+      <div class="card inner">
+        <div class="row-head">
+          <h3>宠物配置</h3>
+          <button id="removePet" class="danger" type="button">删除</button>
+        </div>
+        <div class="grid3">
+          <label>名字<input id="p-name" maxlength="12" /></label>
+          <label>大小（高度 px）<input id="p-size" type="number" min="60" max="600" step="10" /></label>
+          <label
+            >出生位置
+            <select id="p-position">
+              <option value="bottom-right">右下角</option>
+              <option value="bottom-left">左下角</option>
+              <option value="top-right">右上角</option>
+              <option value="top-left">左上角</option>
+            </select>
+          </label>
+          <label>水平偏移 px<input id="p-offsetX" type="number" step="10" /></label>
+          <label>垂直偏移 px<input id="p-offsetY" type="number" step="10" /></label>
+        </div>
+        <div class="checks">
+          <label><input id="p-workStatusEnabled" type="checkbox" />工作状态联动 <span class="hint" title="跟着 Claude Code 思考、敲代码、等批准、庆祝">?</span></label>
+          <label><input id="p-whisperEnabled" type="checkbox" />碎碎念 <span class="hint" title="随机时间 / 做小动作 / Claude Code 事件后自动冒一句">?</span></label>
+          <label><input id="p-fixed" type="checkbox" />宠物固定 <span class="hint" title="不自己走动、不自己转身，只做原地动作；拖拽和点播照常">?</span></label>
+        </div>
+        <label class="block"
+          >人设（可选，留空用默认人设）
+          <textarea id="p-persona" rows="3" placeholder=""></textarea>
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>全局开关</h2>
+      <div class="checks">
+        <label><input id="g-notificationsEnabled" type="checkbox" />系统通知</label>
+        <label><input id="g-autoStart" type="checkbox" />打开 Claude 时自动启动</label>
+        <label><input id="g-roam" type="checkbox" />到处溜达</label>
+        <label><input id="g-whisperEnabled" type="checkbox" />碎碎念（总开关）</label>
+      </div>
+      <div class="grid3">
+        <label>散步速度 px/s<input id="g-walkSpeed" type="number" min="10" max="400" step="10" /></label>
+        <label>碎碎念最短间隔 秒<input id="g-minSec" type="number" min="30" step="30" /></label>
+        <label>碎碎念最长间隔 秒<input id="g-maxSec" type="number" min="30" step="30" /></label>
+        <label>两句之间至少隔 秒<input id="g-cooldownSec" type="number" min="0" step="10" /></label>
+        <label>对话记忆轮数<input id="g-memoryRounds" type="number" min="0" max="50" /></label>
+        <label>Claude Code 模型<input id="g-cliModel" placeholder="留空跟随默认，可填 haiku" /></label>
+      </div>
+      <label class="block">默认人设<textarea id="g-persona" rows="3"></textarea></label>
+    </section>
+
+    <section class="card">
+      <h2>物理（拖拽抛掷手感）</h2>
+      <div class="grid2">
+        <label>重力 gravity<input id="ph-gravity" type="number" step="100" /></label>
+        <label>弹性 restitution<input id="ph-restitution" type="number" min="0" max="1" step="0.02" /></label>
+        <label>地面摩擦 groundFriction<input id="ph-groundFriction" type="number" min="0" step="0.1" /></label>
+        <label>总力度 throwPower<input id="ph-throwPower" type="number" min="0.1" max="5" step="0.1" /></label>
+      </div>
+      <div class="checks">
+        <label><input id="ph-ceilingBounce" type="checkbox" />顶部反弹 ceilingBounce</label>
+        <label><input id="ph-petCollision" type="checkbox" />宠物互撞 petCollision <span class="hint" title="飞行中的宠物撞到别的宠物会弹开（动量守恒，质量 ∝ 尺寸²）">?</span></label>
+      </div>
+    </section>
+
+    <footer>
+      <button id="save" class="primary" type="button">保存</button>
+      <span id="status"></span>
+    </footer>
+    <script src="settings.js"></script>
+  </body>
+</html>

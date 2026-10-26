@@ -1,0 +1,103 @@
+// claude-pet 默认配置（JSONC：允许 // 与 /* */ 注释）
+// 想改配置别动这个文件：在 ~/.claude-pet/config.jsonc 里只写要改的字段即可，对象逐键合并，数组/标量整段替换。
+// 改完右键宠物 →「重载配置」即时生效（port 除外，需重启）。
+{
+  // ===================== 宠物列表（可多开） =====================
+  // 每只宠物一个独立的透明小窗，各自走动、说话、被拖拽；右键「设置…」里可增删和编辑，不用手改这里。
+  //   id：唯一标识（对话记忆按它分开存）；name：名字（人设、托盘、通知都用它，第一只的名字也是通知顶栏的名字）
+  //   size：形象高度 px（60~600）；position：出生角落 bottom-right / bottom-left / top-right / top-left
+  //   offsetX / offsetY：距该角落的水平 / 垂直偏移 px；workStatusEnabled：跟随 Claude Code 工作状态
+  //   whisperEnabled：自动碎碎念；fixed：宠物固定（不自己走、不自己转身，只做原地动作）
+  //   persona：这只宠物自己的人设（留空 = 用 brain.persona）
+  "pets": [
+    {
+      "id": "main",
+      "name": "小橙",
+      "size": 200,
+      "position": "bottom-right",
+      "offsetX": 24,
+      "offsetY": 0,
+      "workStatusEnabled": true,
+      "whisperEnabled": true,
+      "fixed": false,
+      "persona": ""
+    }
+  ],
+  // 打开 Claude（桌面端或 Claude Code）时自动启动桌宠：开机自启一个不显示窗口的守望进程，Claude 一打开就把桌宠拉起来。
+  // 右键菜单「打开 Claude 时自动启动」可直接开关（会写回 ~/.claude-pet/config.jsonc）
+  "autoStart": true,
+  // 本机 HTTP 接口端口（只监听 127.0.0.1）。Claude Code hooks 与其他脚本都往这里发
+  "port": 7341,
+
+  // ===================== 动画链 =====================
+  // 每个动画播完按权重挑下一个：idle 待机 / move 散步 / turn 转身 / fun 各种小动作（桶内均分）
+  "animationWeights": { "idle": 10, "move": 5, "turn": 3, "fun": 6 },
+  // 是否在屏幕上溜达
+  "roam": true,
+  // 散步速度（px/s）
+  "walkSpeed": 70,
+
+  // ===================== 拖拽甩抛物理 =====================
+  "physics": {
+    "gravity": 1400, // 重力（px/s²）
+    "restitution": 0.72, // 碰边反弹保留速度比例
+    "groundFriction": 2.5, // 地面摩擦（/s）
+    "ceilingBounce": true, // 顶部是否反弹
+    "throwPower": 1, // 甩出力度倍率
+    "petCollision": true // 宠物互撞：飞行中的宠物撞到别的宠物会弹开（动量守恒，质量 ∝ 尺寸²）
+  },
+
+  // ===================== 跟随 Claude Code =====================
+  // 收到 hooks 事件时切换「思考 / 敲代码 / 等你批准 / 整理记忆 / 庆祝 / 出错」动画 + 常驻气泡（每只宠物用 pets[].workStatusEnabled 开关）
+  // 需要你批准、回合结束等时刻弹系统通知
+  "notificationsEnabled": true,
+  // 一轮任务耗时超过它（秒）才在结束时弹「完成」通知，避免短问答刷屏
+  "notifyMinBusySec": 20,
+  // 状态文案覆盖，键见 src/shared/status.js 的 DEFAULT_TEXTS，例如 { "done": "收工！" }
+  "statusTexts": {},
+
+  // ===================== 碎碎念 =====================
+  "whisper": {
+    "enabled": true,
+    // 随机时间：每次说完后，在 [minSec, maxSec] 之间随机等一段时间再说下一句
+    "minSec": 180,
+    "maxSec": 600,
+    // 做某个小动作时（吃饼干、看书、吹泡泡……），有这个概率顺口说一句和动作相关的话
+    "actionChance": 0.3,
+    // Claude Code 事件（新会话、任务完成、出错）之后，有这个概率说一句和事件相关的话
+    "eventChance": 0.5,
+    // 两句之间至少间隔多少秒，免得说个不停
+    "cooldownSec": 60,
+    // 每次点击她都会通过 Claude Code 回一句（不受 cooldownSec 限制）；
+    // clickWindowSec 秒内的连续点击算作「连戳」，会告诉 Claude 戳了几下
+    "clickWindowSec": 6,
+    // 每一句都调用本机 Claude Code（claude -p）现场随机生成：随机抽话题、结合当前时间与最近说过的话，不重复；
+    // 没有固定台词。会占用你 Claude Code 订阅的少量额度；调用失败（没登录、超时）时这一句就不说
+  },
+
+  // ===================== 定时动作 =====================
+  // 到了 time（24 小时制，HH:MM）就做 action，并由 Claude Code 围绕 context（只是情境，不是台词）现场生成一句；每条每天最多一次，
+  // 到点后 5 分钟内桌宠在运行都会补上。action 可写数组：按顺序取第一个存在的（视频动作缺失时回落到内置动作）。
+  // days 可选：只在星期几生效（0=周日 … 6=周六）。想关掉就写 "schedule": []
+  "schedule": [
+    { "time": "09:30", "action": ["coffee"], "context": "早上九点半，主人开始上班了", "days": [1, 2, 3, 4, 5] },
+    { "time": "12:00", "action": ["煮火锅", "eat"], "context": "中午十二点，到午饭时间了" },
+    { "time": "19:00", "action": ["煮火锅", "eat"], "context": "晚上七点，到晚饭时间了" },
+    { "time": "20:20", "action": ["dance", "wave"], "context": "晚上八点二十，主人下班了", "days": [1, 2, 3, 4, 5] }
+  ],
+
+  // ===================== 对话（右键 →「和我聊天」） =====================
+  "brain": {
+    // auto：有 ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN 就走 API，否则走本机 claude CLI（用你的 Claude Code 登录，无需 key）
+    // api / cli：强制其中一种
+    "provider": "auto",
+    // API 模式用的模型
+    "apiModel": "claude-opus-5-5",
+    // CLI 模式传给 `claude --model` 的值；留空 = 跟随你 Claude Code 的默认模型（想更快可填 "haiku"）
+    "cliModel": "",
+    // 默认人设（系统提示词）。会自动追加名字与当前时间；某只宠物填了 pets[].persona 就用它自己的
+    "persona": "你是住在主人桌面上的 Q 版少女，橙色长发、橙色眼睛，穿白色荷叶边洋装配黑色腰封，发间别着一朵橙色小花和黑色蝴蝶结；你是 Claude 的小分身，思考时发间的花会转起来。说话自然、可爱、简短（一般不超过 40 字），说人话，不用 markdown，不要自称 AI 助手。",
+    // 每次对话带上的最近历史轮数（1 轮 = 1 问 1 答）；历史全量保存在 ~/.claude-pet/memory.json（其他宠物是 memory-<id>.json）
+    "memoryRounds": 6
+  }
+}

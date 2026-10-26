@@ -1,0 +1,551 @@
+/**
+ * 一只宠物：一个透明置顶小窗 + 它自己的行为状态（动画链 / 漫游 / 拖拽甩抛 / 气泡 / 碎碎念 / 对话）。
+ * 多开时每只宠物一个实例；托盘、hook 状态、通知、定时、HTTP 接口、宠物互撞由 main.js 统一调度。
+ * 窗口本身就是宠物：漫游与抛掷靠移动窗口实现，透明区域鼠标穿透。
+ * @module claude-pet/src/main/pet
+ */
+import { BrowserWindow, Menu, screen } from 'electron';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { listWebm } from './config.js';
+import { Brain, clearMemory } from './brain.js';
+import { ACTIONS, MENU_GROUPS, VIDEO_GROUP, pickNext, pickClick } from '../shared/behavior.js';
+import { STATUS_ANIM } from '../shared/status.js';
+import { springStep, trimTrail, estimateReleaseVelocity, throwStep, landingSquash } from '../shared/physics.js';
+import { throwBounds } from '../shared/displays.js';
+import { PARTS } from '../shared/bodyparts.js';
+import { latestThought, statusBubble } from '../shared/thought.js';
+import { bodyBox } from '../shared/collision.js';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+
+/** 读会话记录末尾 64KB，取 Claude 最新的可见思考过程（说的话 / 正在做的那一步）。 */
+const readThought = (file) => {
+  if (!file) return null;
+  try {
+    const fd = fs.openSync(file, 'r');
+    try {
+      const size = fs.fstatSync(fd).size;
+      const len = Math.min(size, 64 * 1024);
+      const buf = Buffer.alloc(len);
+      fs.readSync(fd, buf, 0, len, size - len);
+      return latestThought(buf.toString('utf8'));
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * @typedef {object} PetContext main.js 提供给每只宠物的共享服务
+ * @property {() => any} config 当前成品配置
+ * @property {() => Record<string, any>} actions 当前动作表（含视频动作）
+ * @property {() => Record<string, number>} videoMeta 视频动作名 → 时长
+ * @property {() => any} tracker Claude Code 会话状态跟踪器
+ * @property {(pet: Pet) => void} promptLogin 提示登录（带「去登录」按钮）
+ * @property {(pet: Pet) => Electron.MenuItemConstructorOptions[]} globalMenu 右键菜单里的全局项（设置、hooks、退出等）
+ */
+
+export class Pet {
+  /**
+   * @param {any} def 宠物配置（config.pets[] 的一项）
+   * @param {PetContext} ctx 共享服务
+   */
+  constructor(def, ctx) {
+    this.def = def;
+    this.ctx = ctx;
+    this.brain = new Brain(ctx.config, { onAuthError: () => ctx.promptLogin(this), getPet: () => this.def });
+    /** 行为状态。x/y 为窗口左上角（浮点，提交时取整）。 */
+    this.st = {
+      mode: 'auto', // auto | drag | throw
+      action: 'idle',
+      actionEnd: 0,
+      facing: 1,
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      grab: { dx: 0, dy: 0 },
+      trail: [],
+      queue: [],
+      statusKey: '',
+      bubble: '',
+      lastTick: Date.now(),
+    };
+    this.pinnedUntil = 0;
+    this.chatting = false;
+    this.whispering = false;
+    this.lastWhisperAt = 0;
+    this.whisperTimer = null;
+    this.clickTimes = [];
+    this.layout();
+  }
+
+  get id() {
+    return this.def.id;
+  }
+
+  get name() {
+    return this.def.name;
+  }
+
+  // ===================== 布局与几何 =====================
+  /** 宠物包围盒在窗口底部居中，上方留给气泡。S = 形象高度，PW = 包围盒宽（立绘宽高比约 0.58）。 */
+  layout() {
+    this.S = this.def.size;
+    this.PW = Math.round(this.S * 0.62);
+    // 动作视频是 16:9 宽画幅（宽约为人物身高的 2.4 倍），窗口要容得下，透明部分鼠标会穿透
+    this.W = Math.max(Math.round(this.S * 2.4), 300);
+    this.H = this.S + 130;
+  }
+
+  geom() {
+    return { W: this.W, H: this.H, S: this.S, PW: this.PW };
+  }
+
+  center() {
+    return { x: this.st.x + this.W / 2, y: this.st.y + this.H - this.S / 2 };
+  }
+
+  /** 身体矩形（宠物互撞用）。 */
+  body() {
+    return bodyBox(this.st.x, this.st.y, this.geom());
+  }
+
+  /** 质量 ∝ 尺寸²（宠物互撞用）。 */
+  mass() {
+    return (this.S / 200) ** 2;
+  }
+
+  /** 漫游时窗口左上角可活动范围：身体贴边、脚踩工作区底边。 */
+  bounds() {
+    const c = this.center();
+    const a = screen.getDisplayNearestPoint({ x: Math.round(c.x), y: Math.round(c.y) }).workArea;
+    const side = (this.W - this.PW) / 2 + this.PW * 0.12;
+    return { minX: a.x - side, maxX: a.x + a.width - this.W + side, minY: a.y - (this.H - this.S), maxY: a.y + a.height - this.H };
+  }
+
+  throwBounds() {
+    const c = this.center();
+    return throwBounds(screen.getAllDisplays(), c.x, c.y, this.geom());
+  }
+
+  // setPosition 只收 int32：Math.round(-0.3) 得到 -0 会被拒，`|| 0` 把 -0 和 NaN 都转成 0
+  commitPos() {
+    if (this.alive()) this.win.setPosition(Math.round(this.st.x) || 0, Math.round(this.st.y) || 0);
+  }
+
+  /** 回到出生角落（按 position 与 offsetX / offsetY）。 */
+  placeAtCorner() {
+    const a = screen.getPrimaryDisplay().workArea;
+    const minX = a.x;
+    const maxX = a.x + a.width - this.W;
+    const floor = a.y + a.height - this.H;
+    const pos = this.def.position || 'bottom-right';
+    const ox = this.def.offsetX ?? 24;
+    const oy = this.def.offsetY ?? 0;
+    this.st.x = pos.endsWith('left') ? minX + ox : maxX - ox;
+    this.st.y = pos.startsWith('top') ? a.y - (this.H - this.S) + oy : floor - oy;
+    this.commitPos();
+    // 顶部出生、或抬离地面的，都会自己掉下来
+    if (pos.startsWith('top') || oy > 0) this.startThrow(0, 0);
+  }
+
+  // ===================== 窗口 =====================
+  alive() {
+    return this.win && !this.win.isDestroyed();
+  }
+
+  createWindow() {
+    this.win = new BrowserWindow({
+      width: this.W,
+      height: this.H,
+      useContentSize: true,
+      show: false,
+      transparent: true,
+      frame: false,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      hasShadow: false,
+      enableLargerThanScreen: true,
+      backgroundColor: '#00000000',
+      webPreferences: {
+        preload: path.join(here, '..', 'preload.cjs'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        spellcheck: false,
+        backgroundThrottling: false,
+      },
+    });
+    this.win.setAlwaysOnTop(true, 'screen-saver');
+    this.win.setIgnoreMouseEvents(true, { forward: true });
+    this.win.loadFile(path.join(here, '..', 'renderer', 'index.html'));
+    this.win.once('ready-to-show', () => {
+      this.placeAtCorner();
+      this.win.showInactive();
+    });
+    this.win.webContents.on('did-finish-load', () => {
+      this.sendInit();
+      this.next();
+      this.st.queue.push('wave');
+      this.scheduleWhisper();
+    });
+    return this.win;
+  }
+
+  destroy() {
+    clearTimeout(this.whisperTimer);
+    if (this.alive()) this.win.destroy();
+  }
+
+  send(ch, payload) {
+    if (this.alive()) this.win.webContents.send(ch, payload);
+  }
+
+  sendInit() {
+    this.send('init', { size: this.S, width: this.W, height: this.H, name: this.name, webm: listWebm(), actions: ACTIONS });
+  }
+
+  /** 配置变了：更新定义；尺寸变了就按脚底不动重新布局窗口。 */
+  applyDef(def) {
+    const oldS = this.S;
+    this.def = def;
+    this.layout();
+    if (oldS !== this.S && this.alive()) {
+      const bottom = this.st.y + this.H - (this.S - oldS);
+      this.win.setContentSize(this.W, this.H);
+      this.st.y = bottom - this.H;
+      this.commitPos();
+    }
+    this.sendInit();
+    this.scheduleWhisper();
+    this.interrupt();
+  }
+
+  // ===================== 动作与气泡 =====================
+  /**
+   * 播放一个动作。
+   * @param {string} action 动作名
+   * @param {{dur?: number}} [o] 选项
+   */
+  play(action, o = {}) {
+    const actions = this.ctx.actions();
+    if (action !== this.st.action && actions[action]?.cat === 'fun') {
+      this.maybeWhisper(this.ctx.config().whisper.actionChance, `你正在${actions[action].label}`);
+    }
+    this.st.action = action;
+    this.st.actionEnd = Date.now() + (o.dur ?? actions[action]?.dur ?? 3000);
+    this.send('play', { action, facing: this.st.facing });
+  }
+
+  /**
+   * 头顶气泡。ttl=0 表示常驻直到被替换或清除。
+   * 带按钮的气泡（如「去登录」）置顶：显示期间不被工作状态、碎碎念等普通气泡顶掉，点了按钮或到时才放开。
+   * @param {string} text 文本（空串 = 清除）
+   * @param {number} [ttl] 毫秒
+   * @param {{id: string, label: string}} [action] 气泡里附带的按钮
+   */
+  say(text, ttl = 6000, action) {
+    if (!action && Date.now() < this.pinnedUntil) return;
+    this.pinnedUntil = action ? Date.now() + (ttl || 30_000) : 0;
+    this.st.bubble = text;
+    this.send('bubble', { text, ttl, action });
+  }
+
+  // ===================== 调度 =====================
+  activeStatus() {
+    return this.def.workStatusEnabled ? this.ctx.tracker().current() : null;
+  }
+
+  statusBubble(s) {
+    return statusBubble(s, readThought(s.transcript));
+  }
+
+  /** 当前动作播完 / 被打断后选下一个。 */
+  next() {
+    const st = this.st;
+    if (st.queue.length) return this.play(st.queue.shift());
+    const s = this.activeStatus();
+    if (s) {
+      const key = `${s.status}|${s.text}`;
+      if (key !== st.statusKey) this.say(this.statusBubble(s), 0);
+      st.statusKey = key;
+      return this.play(STATUS_ANIM[s.status]);
+    }
+    if (st.statusKey) {
+      st.statusKey = '';
+      if (st.bubble) this.say('');
+    }
+    const cfg = this.ctx.config();
+    const fixed = this.def.fixed;
+    const weights = fixed ? { ...cfg.animationWeights, move: 0, turn: 0 } : cfg.animationWeights;
+    const a = pickNext({ prev: st.action, weights, canWalk: cfg.roam && !fixed, actions: this.ctx.actions() });
+    if (a === 'turn') st.facing = -st.facing;
+    if (a === 'walk') {
+      // 前方空间不足就先转身
+      const b = this.bounds();
+      const room = st.facing > 0 ? b.maxX - st.x : st.x - b.minX;
+      if (room < 40) st.facing = -st.facing;
+      return this.play('walk', { dur: 2500 + Math.random() * 4000 });
+    }
+    this.play(a);
+  }
+
+  /** 立即打断当前动作（拖拽 / 抛掷中不打断）。 */
+  interrupt() {
+    if (this.st.mode === 'auto') this.next();
+  }
+
+  /** 排一个动作并立刻开始（拖拽 / 抛掷中只排队）。 */
+  doAction(a) {
+    this.st.queue = [a];
+    if (this.st.mode !== 'auto') return;
+    if (a === 'walk') return this.play('walk', { dur: 4000 });
+    this.next();
+  }
+
+  startThrow(vx, vy) {
+    this.st.mode = 'throw';
+    this.st.vx = vx;
+    this.st.vy = vy;
+    this.play('fall');
+  }
+
+  /** 每帧推进。 */
+  tick(now) {
+    const st = this.st;
+    const dt = Math.min((now - st.lastTick) / 1000, 0.05);
+    st.lastTick = now;
+    if (!this.alive()) return;
+    const cfg = this.ctx.config();
+
+    if (st.mode === 'drag') {
+      const c = screen.getCursorScreenPoint();
+      st.trail = trimTrail([...st.trail, { x: c.x, y: c.y, t: now }], now);
+      Object.assign(st, springStep({ x: st.x, y: st.y, vx: st.vx, vy: st.vy }, { x: c.x - st.grab.dx, y: c.y - st.grab.dy }, dt));
+      this.commitPos();
+      return;
+    }
+
+    if (st.mode === 'throw') {
+      // 多屏：紧挨另一块屏的那一侧不反弹，直接飞过去；落地在当前所在屏的底边
+      const r = throwStep({ x: st.x, y: st.y, vx: st.vx, vy: st.vy }, this.throwBounds(), dt, cfg.physics);
+      Object.assign(st, r.state);
+      if (Math.abs(st.vx) > 30) st.facing = st.vx > 0 ? 1 : -1;
+      if (r.landed) {
+        const q = landingSquash(r.landed);
+        if (q > 0) this.send('squash', { amount: q });
+      }
+      this.commitPos();
+      if (r.resting) {
+        st.mode = 'auto';
+        st.queue.unshift(r.landed > 1600 ? 'click-dizzy' : 'idle');
+        this.next();
+      }
+      return;
+    }
+
+    // auto
+    if (st.action === 'walk') {
+      const b = this.bounds();
+      st.x += st.facing * cfg.walkSpeed * dt;
+      if (st.x <= b.minX || st.x >= b.maxX) {
+        st.x = Math.max(b.minX, Math.min(b.maxX, st.x));
+        st.facing = -st.facing;
+        this.play('turn');
+      }
+      this.commitPos();
+    } else {
+      // 不在地面上（比如分辨率变了 / 被系统挪了 / 放在了下方还有屏的屏上）就掉下去
+      const b = this.throwBounds();
+      if (st.y < b.maxY - 2 || st.y > b.maxY + 2) {
+        st.y = Math.min(st.y, b.maxY);
+        return this.startThrow(0, 0);
+      }
+    }
+    if (now >= st.actionEnd) this.next();
+  }
+
+  /** 跟随工作状态时刷新气泡里的思考过程（hook 只在工具前后触发，中间说的话靠它跟上）。 */
+  refreshThought() {
+    const s = this.activeStatus();
+    if (!s || this.st.mode !== 'auto' || this.chatting) return;
+    const text = this.statusBubble(s);
+    if (text !== this.st.bubble) this.say(text, 0);
+  }
+
+  /**
+   * Claude Code 事件：main.js 已经把事件喂给共享的 tracker，这里只处理这只宠物的反应。
+   * @param {{oneShot?: string, bubble?: string}} fx 本次事件的一次性效果
+   */
+  onHookEffect(fx) {
+    if (!this.def.workStatusEnabled) return;
+    const st = this.st;
+    if (fx.oneShot) st.queue.push(fx.oneShot);
+    if (fx.bubble) this.say(fx.bubble, 5000);
+    const s = this.ctx.tracker().current();
+    const key = s ? `${s.status}|${s.text}` : '';
+    if (fx.oneShot || key !== st.statusKey) {
+      // 文案变了但动画不变时只换气泡，不重播
+      if (!fx.oneShot && s && st.statusKey && STATUS_ANIM[s.status] === st.action) {
+        st.statusKey = key;
+        this.say(this.statusBubble(s), 0);
+      } else this.interrupt();
+    }
+  }
+
+  // ===================== 对话 / 碎碎念 =====================
+  async chat(text) {
+    this.chatting = true;
+    this.say('嗯…让我想想', 0);
+    this.play('think', { dur: 120_000 });
+    try {
+      const reply = await this.brain.chat(text);
+      this.say(reply, Math.min(20_000, 5000 + reply.length * 180));
+      this.st.queue.push('click-happy');
+      return reply;
+    } catch (e) {
+      if (e.code === 'AUTH') this.ctx.promptLogin(this, true);
+      else this.say(`呜，脑子卡住了：${String(e.message).slice(0, 60)}`, 8000);
+      this.st.queue.push('error');
+      throw e;
+    } finally {
+      this.chatting = false;
+      this.st.actionEnd = 0;
+    }
+  }
+
+  // 碎碎念：随机时间 / 做小动作时 / Claude Code 事件后 / 被点击 / 主人点播动作时自动冒出来，
+  // 每句都由 Claude Code 现场生成。任意两句之间至少隔 cooldownSec；聊天中、跟随工作状态中、被拎着时不说。
+  scheduleWhisper() {
+    clearTimeout(this.whisperTimer);
+    const w = this.ctx.config().whisper;
+    if (!w.enabled || !this.def.whisperEnabled) return;
+    const lo = Math.max(30, w.minSec ?? 180);
+    const hi = Math.max(lo, w.maxSec ?? 600);
+    this.whisperTimer = setTimeout(async () => {
+      await this.whisperNow({ dance: true });
+      this.scheduleWhisper();
+    }, (lo + Math.random() * (hi - lo)) * 1000);
+  }
+
+  /**
+   * 说一句碎碎念。
+   * @param {{context?: string, dance?: boolean, force?: boolean}} [o] context：此刻发生了什么；dance：说完哼个小曲；force：不受冷却限制
+   */
+  async whisperNow(o = {}) {
+    const w = this.ctx.config().whisper;
+    if (!w.enabled || this.whispering || this.chatting || this.activeStatus() || this.st.mode !== 'auto') return;
+    if (!o.force && Date.now() - this.lastWhisperAt < (w.cooldownSec ?? 60) * 1000) return;
+    this.whispering = true;
+    this.lastWhisperAt = Date.now();
+    try {
+      const line = await this.brain.whisper(o.context);
+      if (!line || this.chatting || this.activeStatus()) return;
+      this.say(line, 7000);
+      if (o.dance && this.st.mode === 'auto' && !['walk', 'sleep'].includes(this.st.action)) {
+        this.st.queue.push('sing');
+        this.interrupt();
+      }
+    } catch (e) {
+      console.error('[claude-pet] 碎碎念失败：', e.message);
+    } finally {
+      this.whispering = false;
+    }
+  }
+
+  /** 按概率触发一句和某件事相关的碎碎念。 */
+  maybeWhisper(chance, context, delayMs = 0) {
+    if (!this.def.whisperEnabled || Math.random() >= (chance ?? 0)) return;
+    setTimeout(() => this.whisperNow({ context }), delayMs);
+  }
+
+  // ===================== 交互 =====================
+  dragStart() {
+    const c = screen.getCursorScreenPoint();
+    this.st.grab = { dx: c.x - this.st.x, dy: c.y - this.st.y };
+    this.st.vx = this.st.vy = 0;
+    this.st.trail = [];
+    this.st.mode = 'drag';
+    this.play('drag');
+  }
+
+  dragEnd() {
+    if (this.st.mode !== 'drag') return;
+    const v = estimateReleaseVelocity(this.st.trail, Date.now(), this.ctx.config().physics.throwPower);
+    this.startThrow(v?.vx ?? 0, v?.vy ?? 0);
+  }
+
+  /** 点哪里说哪里：每个部位有自己的情境和小反应；连续点击会告诉 Claude 碰了几下。 */
+  click(info) {
+    if (this.st.mode !== 'auto') return;
+    this.send('squash', { amount: 0.25 });
+    const part = PARTS[info?.part];
+    const now = Date.now();
+    const win = (this.ctx.config().whisper.clickWindowSec ?? 6) * 1000;
+    this.clickTimes = [...this.clickTimes.filter((t) => now - t < win), now];
+    const n = this.clickTimes.length;
+    const ctx = part ? part.context : '主人戳了你一下';
+    this.whisperNow({ context: n > 1 ? `${ctx}（已经连续碰了你 ${n} 下）` : ctx, force: true });
+    this.st.queue = [part?.reaction ?? pickClick()];
+    this.next();
+  }
+
+  /** 主人点播动作：必定通过 Claude Code 说一句和它有关的话。 */
+  requestAction(a) {
+    const actions = this.ctx.actions();
+    if (!actions[a]) return false;
+    if (this.st.mode === 'auto') this.whisperNow({ context: `主人让你${actions[a].label}`, force: true });
+    this.doAction(a);
+    return true;
+  }
+
+  openInput(o) {
+    if (!this.alive()) return;
+    this.win.focus();
+    this.send('chat-open', o);
+  }
+
+  menu() {
+    const actions = this.ctx.actions();
+    const videoMeta = this.ctx.videoMeta();
+    const extra = Object.keys(videoMeta).filter((k) => !ACTIONS[k]);
+    return Menu.buildFromTemplate([
+      {
+        label: '动作',
+        submenu: Object.entries({ ...MENU_GROUPS, ...(extra.length ? { [VIDEO_GROUP]: extra } : {}) }).map(([group, list]) => ({
+          label: group,
+          submenu: list.map((a) => ({ label: actions[a].label, click: () => this.requestAction(a) })),
+        })),
+      },
+      { label: '和我聊天…', click: () => this.openInput() },
+      {
+        label: `给我改名字…（现在叫「${this.name}」）`,
+        click: () => this.openInput({ mode: 'rename', placeholder: '给我起个新名字，回车确定（Esc 取消）', value: this.name }),
+      },
+      { type: 'separator' },
+      { label: '回到初始位置', click: () => this.placeAtCorner() },
+      { label: '清空我的对话记忆', click: () => (clearMemory(this.id), this.say('我…我忘了什么吗？', 4000)) },
+      { type: 'separator' },
+      ...this.ctx.globalMenu(this),
+    ]);
+  }
+
+  state() {
+    const st = this.st;
+    return {
+      id: this.id,
+      name: this.name,
+      mode: st.mode,
+      action: st.action,
+      facing: st.facing,
+      bounds: { x: Math.round(st.x), y: Math.round(st.y), width: this.W, height: this.H },
+      bubble: st.bubble,
+    };
+  }
+}
+

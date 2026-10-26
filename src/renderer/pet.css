@@ -1,0 +1,816 @@
+/* claude-pet 渲染样式：角色是立绘原图（assets/sprite/girl.png），动作 = 整体变换 + 叠加层（眼睛 / 嘴 / 道具 / 转花）。
+   #pet[data-action] 决定当前动作。 */
+:root {
+  --orange: #e8692a;
+  --orange-dark: #b8481a;
+  --ink: #4a1e10;
+  --skin: #fff6f2;
+  --bubble-bg: #fffaf3;
+  --bubble-ink: #3d2a22;
+  --bubble-edge: #f0c9a8;
+  /* --size = 形象高度；包围盒宽 = 立绘宽高比（521/900 ≈ 0.58）略放宽 */
+  --size: 200px;
+  --pw: calc(var(--size) * 0.62);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bubble-bg: #2f2522;
+    --bubble-ink: #f6e8dc;
+    --bubble-edge: #6a4636;
+  }
+}
+html,
+body {
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  font-family: 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans CJK SC', system-ui, sans-serif;
+}
+#stage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* ===================== 气泡 / 对话框 ===================== */
+#top {
+  position: absolute;
+  /* 气泡 / 对话框永远在最上层：宽幅动作视频会延伸到这里，不能盖住输入框 */
+  z-index: 2;
+  left: 8px;
+  right: 8px;
+  bottom: calc(var(--size) * 1.01);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+#bubble {
+  position: relative;
+  /* 和输入框同宽上限：不跟着为动作视频加宽的窗口拉得很长 */
+  max-width: min(100%, calc(var(--size) * 1.3));
+  box-sizing: border-box;
+  padding: 7px 12px;
+  border-radius: 14px;
+  background: var(--bubble-bg);
+  color: var(--bubble-ink);
+  border: 1.5px solid var(--bubble-edge);
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  transform: translateY(6px) scale(0.96);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+/* 长文本在内层滚动，外层不能裁剪，否则底部小尖角会被裁掉 */
+#bubbleText {
+  display: block;
+  max-height: 120px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+#bubbleText::-webkit-scrollbar {
+  display: none;
+}
+#bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 11px;
+  height: 11px;
+  background: var(--bubble-bg);
+  border-right: 1.5px solid var(--bubble-edge);
+  border-bottom: 1.5px solid var(--bubble-edge);
+  transform: translateX(-50%) rotate(45deg);
+}
+#bubbleBtn {
+  display: block;
+  margin: 6px auto 0;
+  padding: 3px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--orange);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+#bubbleBtn[hidden] {
+  display: none;
+}
+#bubble.show {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+#chat {
+  display: none;
+  gap: 4px;
+  /* 和头顶气泡差不多宽：不跟着为动作视频加宽的窗口铺满 */
+  width: min(100%, calc(var(--size) * 1.3));
+  pointer-events: auto;
+}
+#chat.show {
+  display: flex;
+}
+#chat input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1.5px solid var(--orange);
+  background: var(--bubble-bg);
+  color: var(--bubble-ink);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+#chat button {
+  border: 0;
+  border-radius: 10px;
+  padding: 0 10px;
+  background: var(--orange);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ===================== 宠物 ===================== */
+#pet {
+  position: absolute;
+  bottom: 0;
+  left: calc(50% - var(--pw) / 2);
+  width: var(--pw);
+  height: var(--size);
+}
+#squash,
+#flip {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 97%;
+}
+#flip {
+  transition: transform 0.32s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.rig {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform-origin: 50% 100%;
+  height: var(--size);
+  width: calc(var(--size) * 521 / 900);
+  margin-left: calc(var(--size) * -260.5 / 900);
+}
+.sprite,
+.overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  -webkit-user-drag: none;
+}
+/* 动作视频（scripts/make_video.py 产出，版式与 dsh-pet 一致）：640×360 画面里人物站立高度占 900/1215，
+   脚底在 1115/1215 处。按此反推视频尺寸，让视频里的人物和立绘一样高、脚底落在同一条线上 */
+/* 立绘、视频、叠加层只负责显示，不接鼠标：可交互的只有 #hit（身体）和头顶的气泡 / 对话框 */
+#squash,
+#fx {
+  pointer-events: none;
+}
+#video {
+  --vh: calc(var(--size) * 1215 / 900);
+  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--vh) * -100 / 1215);
+  height: var(--vh);
+  width: calc(var(--vh) * 16 / 9);
+  margin-left: calc(var(--vh) * -8 / 9);
+  max-width: none;
+}
+/* 庆祝视频的彩带铺满整个宽画面：只保留人物周围一圈（椭圆宽约人物的 2 倍），往外渐隐 */
+[data-action='success'] #video {
+  -webkit-mask-image: radial-gradient(ellipse 24% 50% at 50% 55%, #000 60%, transparent 100%);
+  mask-image: radial-gradient(ellipse 24% 50% at 50% 55%, #000 60%, transparent 100%);
+}
+/* 视频自带道具与特效，叠加的文字特效不再显示 */
+#pet.has-video #fx {
+  display: none;
+}
+#pet.has-video #video {
+  display: block;
+}
+#pet.has-video .rig {
+  display: none;
+}
+#hit {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 0;
+  bottom: 0;
+  cursor: grab;
+}
+#hit:active {
+  cursor: grabbing;
+}
+
+/* 叠加层部件（默认都藏着，按动作显示） */
+.lids {
+  fill: var(--skin);
+}
+.lids,
+.eyes,
+.shyLines,
+.mouthO,
+.sweat,
+.blushes,
+.prop {
+  display: none;
+}
+.eyes path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.blushes {
+  fill: #f48f8f;
+  opacity: 0.85;
+}
+.shyLines {
+  fill: none;
+  stroke: #e05a5a;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.mouthO {
+  fill: #a0443a;
+  stroke: #5a2015;
+  stroke-width: 2;
+}
+.sweat {
+  fill: #8ec9f0;
+  stroke: #5b9ec9;
+  stroke-width: 1.5;
+}
+.steam {
+  fill: none;
+  stroke: rgba(190, 190, 190, 0.9);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  animation: steam 2s ease-in-out infinite;
+}
+.steam.s2 {
+  animation-delay: 1s;
+}
+.flower,
+.cookie,
+.cup,
+.page,
+.mouthO,
+.sweat {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+.page {
+  transform-origin: 0% 50%;
+}
+
+/* ===================== 通用：呼吸 + 眨眼 ===================== */
+.rig {
+  animation: breathe 3s ease-in-out infinite;
+}
+/* 眨眼：由 renderer.js 按随机间隔给 #pet 加 .blink（偶尔连眨两下）；
+   只在睁眼的动作里生效，已经换成别的眼型的动作不眨 */
+#pet.blink:is(:not([data-action]), [data-action='idle'], [data-action='walk'], [data-action='turn'], [data-action='look'],
+    [data-action='read'], [data-action='think'], [data-action='work'], [data-action='coffee'], [data-action='eat'],
+    [data-action='wait'], [data-action='jump'], [data-action='dance'], [data-action='spin'], [data-action='click-shy'])
+  :is(.lids, .eyesClosed) {
+  display: inline;
+}
+
+/* 说话：气泡出字时嘴巴一张一合（renderer.js 按字数控制 .talking 的时长） */
+#pet.talking .mouthO {
+  display: inline;
+  animation: talk 0.24s ease-in-out infinite;
+}
+
+/* 双腿：图层垫在裙子下面，抬起时上端缩进裙底 */
+.leg {
+  transform-origin: 50% 100%;
+}
+
+/* 需要换眼睛的动作：常显遮罩 */
+[data-action='sleep'] .lids,
+[data-action='sing'] .lids,
+[data-action='stretch'] .lids,
+[data-action='wave'] .lids,
+[data-action='click-happy'] .lids,
+[data-action='success'] .lids,
+[data-action='error'] .lids,
+[data-action='click-dizzy'] .lids,
+[data-action='organize'] .lids {
+  display: inline;
+}
+[data-action='sleep'] .eyesClosed,
+[data-action='stretch'] .eyesClosed,
+[data-action='organize'] .eyesClosed {
+  display: inline;
+}
+[data-action='sing'] .eyesHappy,
+[data-action='wave'] .eyesHappy,
+[data-action='click-happy'] .eyesHappy,
+[data-action='success'] .eyesHappy {
+  display: inline;
+}
+[data-action='error'] .eyesX,
+[data-action='error'] .sweat,
+[data-action='wait'] .sweat {
+  display: inline;
+}
+[data-action='click-dizzy'] .eyesDizzy {
+  display: inline;
+}
+[data-action='click-shy'] .blushes,
+[data-action='click-happy'] .blushes,
+[data-action='success'] .blushes,
+[data-action='dance'] .blushes {
+  display: inline;
+}
+[data-action='eat'] .mouthO,
+[data-action='sing'] .mouthO,
+[data-action='drag'] .mouthO,
+[data-action='fall'] .mouthO,
+[data-action='sleep'] .mouthO {
+  display: inline;
+}
+[data-action='sleep'] .mouthO {
+  transform: scale(0.55);
+}
+
+/* ===================== 各动作 ===================== */
+/* 散步：小碎步一颠一颠地走 */
+[data-action='walk'] .rig {
+  animation: walk-bob 0.6s ease-in-out infinite;
+}
+[data-action='walk'] .legL,
+[data-action='dance'] .legL {
+  animation: step 0.6s ease-in-out infinite;
+}
+[data-action='walk'] .legR,
+[data-action='dance'] .legR {
+  animation: step 0.6s ease-in-out infinite -0.3s;
+}
+
+/* 打瞌睡 */
+[data-action='sleep'] .rig {
+  animation: doze 4s ease-in-out infinite;
+}
+[data-action='sleep'] .zzz {
+  display: block;
+}
+
+/* 蹦一蹦 */
+[data-action='jump'] .rig {
+  animation: jump 0.9s ease-in-out 2;
+}
+[data-action='jump'] .leg {
+  animation: tuck 0.9s ease-in-out 2;
+}
+
+/* 挥手 → 开心地上下颠 */
+[data-action='wave'] .rig {
+  animation: rock 0.6s ease-in-out 4;
+}
+[data-action='wave'] .sparkle {
+  display: block;
+}
+
+/* 跳舞 */
+[data-action='dance'] .rig {
+  animation: dance 1.2s ease-in-out infinite;
+}
+[data-action='dance'] .notes,
+[data-action='sing'] .notes {
+  display: block;
+}
+
+/* 东张西望 */
+[data-action='look'] .rig {
+  animation: look 3.6s ease-in-out 1;
+}
+
+/* 吃饼干：从右手送到嘴边，嘴巴一张一合 */
+[data-action='eat'] .cookie {
+  display: inline;
+  animation:
+    to-mouth 1.3s ease-in-out infinite,
+    cookie-bites 5.2s steps(4, end) forwards;
+}
+[data-action='eat'] .mouthO {
+  animation: chomp 0.33s ease-in-out infinite;
+}
+
+/* 看书 / 整理记忆 */
+[data-action='read'] .book,
+[data-action='organize'] .book {
+  display: inline;
+}
+[data-action='read'] .page {
+  animation: page-flip 3.2s ease-in-out infinite;
+}
+[data-action='organize'] .page {
+  animation: page-flip 0.8s ease-in-out infinite;
+}
+[data-action='read'] .rig {
+  animation: rock-slow 4s ease-in-out infinite;
+}
+
+/* 哼小曲 */
+[data-action='sing'] .rig {
+  animation: rock 1.6s ease-in-out infinite;
+}
+[data-action='sing'] .mouthO {
+  animation: chomp 0.8s ease-in-out infinite;
+}
+
+/* 转圈 → 原地蹦两下（不左右翻转） */
+[data-action='spin'] .rig {
+  animation: spin 0.8s linear 2;
+}
+[data-action='spin'] .leg {
+  animation: tuck 0.4s ease-in-out 4;
+}
+
+/* 伸懒腰 */
+[data-action='stretch'] .rig {
+  animation: stretch 3.2s ease-in-out 1;
+}
+
+/* 喝咖啡 */
+[data-action='coffee'] .cup {
+  display: inline;
+  animation: sip 2.5s ease-in-out infinite;
+}
+
+/* 点击：开心 */
+[data-action='click-happy'] .rig {
+  animation: hop 0.5s ease-out 2;
+}
+[data-action='click-happy'] .leg {
+  animation: tuck-small 0.5s ease-out 2;
+}
+[data-action='click-happy'] .sparkle {
+  display: block;
+}
+
+/* 点击：害羞 */
+[data-action='click-shy'] .rig {
+  animation: rock 0.9s ease-in-out infinite;
+}
+[data-action='click-shy'] .shyLines {
+  display: inline;
+}
+
+/* 点击：晕乎乎 */
+[data-action='click-dizzy'] .rig {
+  animation: wobble 0.7s ease-in-out infinite;
+}
+[data-action='click-dizzy'] .stars {
+  display: block;
+}
+
+/* 思考：头上的花转起来 */
+[data-action='think'] .flower,
+[data-action='organize'] .flower {
+  animation: spin-flower 2.4s linear infinite;
+}
+[data-action='think'] .rig {
+  animation: none;
+}
+[data-action='think'] .dots {
+  display: flex;
+}
+
+/* 敲代码 */
+[data-action='work'] .laptop {
+  display: inline;
+}
+[data-action='work'] .flower {
+  animation: spin-flower 1s linear infinite;
+}
+[data-action='work'] .rig {
+  animation: bob-small 0.44s ease-in-out infinite;
+}
+
+/* 等你批准 */
+[data-action='wait'] .rig {
+  animation: hop 1.4s ease-in-out infinite;
+}
+[data-action='wait'] .leg {
+  animation: tuck-small 1.4s ease-in-out infinite;
+}
+[data-action='wait'] .qmark {
+  display: block;
+}
+
+/* 庆祝 */
+[data-action='success'] .rig {
+  animation: jump 0.8s ease-in-out 3;
+}
+[data-action='success'] .leg {
+  animation: tuck 0.8s ease-in-out 3;
+}
+[data-action='success'] .confetti {
+  display: block;
+}
+
+/* 出错 */
+[data-action='error'] .rig {
+  animation: shake 0.4s ease-in-out 4;
+}
+[data-action='error'] .bang {
+  display: block;
+}
+
+/* 被拎起：保持不动（只张嘴）/ 飞行：轻微伸缩 */
+[data-action='drag'] .rig {
+  animation: none;
+}
+/* 被拎着时腿自然下垂一点；飞行时收腿 */
+[data-action='drag'] .leg {
+  transform: translateY(1.4%);
+}
+[data-action='fall'] .rig {
+  animation: tumble 0.6s ease-in-out infinite;
+}
+[data-action='fall'] .leg {
+  transform: translateY(-1.6%);
+}
+
+/* ===================== 特效层（不随朝向翻转） ===================== */
+#fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.fx {
+  display: none;
+  position: absolute;
+  color: var(--orange-dark);
+  font-weight: 700;
+  text-shadow: 0 1px 0 #fff;
+}
+.fx i,
+.fx b {
+  font-style: normal;
+  display: inline-block;
+}
+.zzz {
+  right: 6%;
+  top: 2%;
+  font-size: calc(var(--size) * 0.09);
+  color: #7b8fc7;
+  animation: float-up 3s ease-in-out infinite;
+}
+.zzz i {
+  font-size: 1.3em;
+}
+.zzz b {
+  font-size: 1.7em;
+}
+.notes {
+  right: 4%;
+  top: 4%;
+  font-size: calc(var(--size) * 0.12);
+  animation: float-up 1.6s ease-in-out infinite;
+}
+.notes i {
+  margin-left: 4px;
+  animation: float-up 1.6s ease-in-out infinite 0.5s;
+}
+.qmark,
+.bang {
+  right: 8%;
+  top: 0;
+  font-size: calc(var(--size) * 0.16);
+  animation: pop 1.4s ease-in-out infinite;
+}
+.bang {
+  color: #d64545;
+  animation: pop 0.4s ease-in-out infinite;
+}
+.dots {
+  right: 4%;
+  top: 8%;
+  gap: 4px;
+}
+.dots i {
+  width: calc(var(--size) * 0.035);
+  height: calc(var(--size) * 0.035);
+  border-radius: 50%;
+  background: var(--orange);
+  animation: dot 1.2s ease-in-out infinite;
+}
+.dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+.stars {
+  left: 30%;
+  top: 2%;
+  font-size: calc(var(--size) * 0.08);
+  color: #e8b931;
+  animation: orbit 1s linear infinite;
+}
+.stars i,
+.stars b,
+.sparkle i {
+  margin-left: 6px;
+}
+.sparkle {
+  right: 8%;
+  top: 6%;
+  font-size: calc(var(--size) * 0.1);
+  color: #e8b931;
+  animation: pop 0.5s ease-out infinite;
+}
+.confetti {
+  inset: 0;
+}
+.confetti i {
+  position: absolute;
+  top: 18%;
+  width: 6px;
+  height: 10px;
+  border-radius: 2px;
+  animation: confetti 1.3s ease-out infinite;
+}
+.confetti i:nth-child(1) { left: 12%; background: #e8692a; animation-delay: 0s; }
+.confetti i:nth-child(2) { left: 24%; background: #e8b931; animation-delay: 0.15s; }
+.confetti i:nth-child(3) { left: 36%; background: #2a2120; animation-delay: 0.3s; }
+.confetti i:nth-child(4) { left: 48%; background: #f59a3c; animation-delay: 0.05s; }
+.confetti i:nth-child(5) { left: 60%; background: #e46a6a; animation-delay: 0.25s; }
+.confetti i:nth-child(6) { left: 72%; background: #fff8ee; animation-delay: 0.1s; }
+.confetti i:nth-child(7) { left: 84%; background: #e8692a; animation-delay: 0.35s; }
+.confetti i:nth-child(8) { left: 92%; background: #e8b931; animation-delay: 0.2s; }
+
+/* ===================== 关键帧 ===================== */
+@keyframes breathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.006, 1.014); }
+}
+@keyframes doze {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.012, 0.975); }
+}
+@keyframes bob-small {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+@keyframes walk-bob {
+  0%, 50%, 100% { transform: translateY(0) scale(1.01, 0.99); }
+  25%, 75% { transform: translateY(-1.2%) scale(1, 1); }
+}
+@keyframes step {
+  0%, 50%, 100% { transform: translateY(0); }
+  25% { transform: translateY(-2.4%); }
+}
+@keyframes tuck {
+  0%, 22%, 82%, 100% { transform: translateY(0); }
+  40%, 62% { transform: translateY(-2.8%); }
+}
+@keyframes tuck-small {
+  0%, 30%, 80%, 100% { transform: translateY(0); }
+  45%, 60% { transform: translateY(-1.3%); }
+}
+@keyframes talk {
+  0%, 100% { transform: scaleY(0.25); }
+  50% { transform: scaleY(1); }
+}
+@keyframes jump {
+  0% { transform: none; }
+  18% { transform: scale(1.07, 0.9); }
+  32% { transform: translateY(-12%) scale(0.95, 1.06); }
+  50% { transform: translateY(-17%) scale(1, 1); }
+  68% { transform: translateY(-6%) scale(0.98, 1.03); }
+  80% { transform: translateY(0) scale(1.08, 0.9); }
+  92% { transform: scale(0.98, 1.02); }
+  100% { transform: none; }
+}
+@keyframes hop {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6%); }
+  70% { transform: translateY(0) scale(1.04, 0.96); }
+}
+@keyframes rock {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3%); }
+}
+@keyframes rock-slow {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.006, 1.014); }
+}
+@keyframes dance {
+  0%, 50%, 100% { transform: translateY(0) scale(1.04, 0.96); }
+  25%, 75% { transform: translateY(-5%) scale(0.98, 1.03); }
+}
+@keyframes look {
+  0%, 100% { transform: translateY(0); }
+  30%, 70% { transform: translateY(-1.5%); }
+}
+@keyframes to-mouth {
+  0%, 100% { transform: translate(0, 0); }
+  45%, 60% { transform: translate(-174px, -240px); }
+}
+@keyframes cookie-bites {
+  from { scale: 1; }
+  to { scale: 0; }
+}
+@keyframes chomp {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.35); }
+}
+@keyframes page-flip {
+  0%, 60% { transform: scaleX(1); }
+  80% { transform: scaleX(-1); }
+  100% { transform: scaleX(-1); opacity: 0; }
+}
+@keyframes spin {
+  0%, 50%, 100% { transform: translateY(0) scale(1, 1); }
+  20%, 70% { transform: translateY(-8%) scale(0.96, 1.05); }
+  40%, 90% { transform: translateY(0) scale(1.06, 0.94); }
+}
+@keyframes stretch {
+  0%, 100% { transform: scale(1, 1); }
+  30%, 70% { transform: scale(0.95, 1.08); }
+}
+@keyframes sip {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  40%, 65% { transform: translate(-168px, -236px) rotate(-25deg); }
+}
+@keyframes wobble {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.04, 0.96); }
+}
+@keyframes spin-flower {
+  to { transform: rotate(360deg); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateY(0); }
+  25% { transform: translateY(-2%); }
+  75% { transform: translateY(1%); }
+}
+@keyframes tumble {
+  0%, 100% { transform: scale(1.02, 0.98); }
+  50% { transform: scale(0.98, 1.02); }
+}
+@keyframes steam {
+  0% { opacity: 0; transform: translateY(6px); }
+  50% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+@keyframes float-up {
+  0% { transform: translateY(6px); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateY(-14px); opacity: 0; }
+}
+@keyframes pop {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25) translateY(-3px); }
+}
+@keyframes dot {
+  0%, 100% { transform: translateY(0); opacity: 0.4; }
+  50% { transform: translateY(-5px); opacity: 1; }
+}
+@keyframes orbit {
+  0% { transform: translateX(-6px) rotate(0); }
+  50% { transform: translateX(6px) rotate(10deg); }
+  100% { transform: translateX(-6px) rotate(0); }
+}
+@keyframes confetti {
+  0% { transform: translateY(0) rotate(0); opacity: 1; }
+  100% { transform: translateY(-70px) rotate(540deg); opacity: 0; }
+}
+
+/* 减少动效：保留状态切换，去掉大幅位移 */
+@media (prefers-reduced-motion: reduce) {
+  .rig,
+  #flip {
+    animation: none !important;
+    transition: none !important;
+  }
+}

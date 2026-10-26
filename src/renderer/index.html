@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; style-src 'self' 'unsafe-inline'; media-src file:; img-src file: data:" />
+    <title>claude-pet</title>
+    <link rel="stylesheet" href="pet.css" />
+  </head>
+  <body>
+    <div id="stage">
+      <!-- 头顶：气泡 + 对话框 -->
+      <div id="top">
+        <div id="bubble"><span id="bubbleText"></span><button id="bubbleBtn" type="button"></button></div>
+        <form id="chat">
+          <input id="chatInput" maxlength="500" placeholder="和我说点什么…（Esc 关闭）" autocomplete="off" />
+          <button type="submit">发送</button>
+        </form>
+      </div>
+
+      <div id="pet" data-action="idle">
+        <div id="squash">
+          <div id="flip">
+            <video id="video" muted playsinline></video>
+            <div class="rig">
+              <!-- 双腿单独一层垫在裙子下面：走路交替抬脚，起跳收腿，落地屈膝 -->
+              <img class="sprite leg legL" src="../../assets/sprite/pet-leg-l.png" alt="" draggable="false" />
+              <img class="sprite leg legR" src="../../assets/sprite/pet-leg-r.png" alt="" draggable="false" />
+              <img class="sprite body" src="../../assets/sprite/pet-body.png" alt="" draggable="false" />
+              <!-- 叠加层：与立绘同坐标（521×900），做眨眼 / 表情 / 道具 / 转花 -->
+              <svg class="overlay" viewBox="0 0 521 900" aria-hidden="true">
+                <defs>
+                  <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" /></filter>
+                  <filter id="blush" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" /></filter>
+                </defs>
+                <!-- 转动的发饰花（平时与原图重合，看不出来） -->
+                <g class="flower"><image href="../../assets/sprite/pet-flower.png" x="308" y="82" width="80" height="80" /></g>
+                <!-- 眼睛遮罩：盖住原眼睛再画闭眼 / 笑眼 / 叉叉 / 晕圈 -->
+                <g class="lids" filter="url(#soft)">
+                  <ellipse cx="176" cy="254" rx="29" ry="33" transform="rotate(-6 176 254)" />
+                  <ellipse cx="272" cy="226" rx="30" ry="32" transform="rotate(-6 272 226)" />
+                </g>
+                <g class="eyesClosed eyes">
+                  <path d="M148 258 Q176 271 205 253" /><path d="M243 230 Q272 243 301 224" />
+                </g>
+                <g class="eyesHappy eyes">
+                  <path d="M152 267 Q177 240 202 261" /><path d="M247 238 Q272 211 297 233" />
+                </g>
+                <g class="eyesX eyes">
+                  <path d="M162 240 L192 268 M192 240 L162 268" /><path d="M258 212 L288 240 M288 212 L258 240" />
+                </g>
+                <g class="eyesDizzy eyes">
+                  <path d="M177 254 m-4 0 a4 4 0 1 1 8 0 a8 8 0 1 1 -16 0 a12 12 0 1 1 24 0" />
+                  <path d="M272 226 m-4 0 a4 4 0 1 1 8 0 a8 8 0 1 1 -16 0 a12 12 0 1 1 24 0" />
+                </g>
+                <g class="blushes" filter="url(#blush)">
+                  <ellipse cx="163" cy="294" rx="20" ry="9" /><ellipse cx="292" cy="268" rx="20" ry="9" />
+                </g>
+                <g class="shyLines">
+                  <path d="M147 304 l9 -13 M161 306 l9 -13 M175 308 l9 -13 M276 278 l9 -13 M290 280 l9 -13 M304 282 l9 -13" />
+                </g>
+                <ellipse class="mouthO" cx="238" cy="284" rx="10" ry="11" />
+                <path class="sweat" d="M322 168 q-11 17 0 23 q11 -6 0 -23 z" />
+                <!-- 道具：右手拿饼干 / 咖啡，身前捧书 / 电脑 -->
+                <g class="cookie prop">
+                  <circle cx="414" cy="526" r="19" fill="#c98b4e" stroke="#8a5a2e" stroke-width="2.5" />
+                  <circle cx="407" cy="519" r="3.4" fill="#5a3a22" /><circle cx="421" cy="533" r="3.4" fill="#5a3a22" />
+                  <circle cx="422" cy="517" r="2.6" fill="#5a3a22" /><circle cx="406" cy="535" r="2.6" fill="#5a3a22" />
+                </g>
+                <g class="cup prop">
+                  <rect x="396" y="498" width="36" height="40" rx="7" fill="#fbf7ef" stroke="#a88f78" stroke-width="2.5" />
+                  <path d="M432 507 q13 0 13 11 q0 11 -13 11" fill="none" stroke="#a88f78" stroke-width="4.5" />
+                  <rect x="400" y="503" width="28" height="8" fill="#7a4b2e" />
+                  <path class="steam" d="M407 490 q-5 -9 0 -17 q5 -9 0 -17" /><path class="steam s2" d="M421 490 q-5 -9 0 -17 q5 -9 0 -17" />
+                </g>
+                <g class="book prop">
+                  <path d="M262 448 L180 436 L176 514 L262 528 Z" fill="#7a3b22" />
+                  <path d="M262 448 L344 436 L348 514 L262 528 Z" fill="#8a4628" />
+                  <path d="M260 452 L186 441 L183 508 L260 520 Z" fill="#fbf7ef" />
+                  <path d="M264 452 L338 441 L341 508 L264 520 Z" fill="#fbf7ef" />
+                  <path d="M196 460 l52 7 M196 474 l46 6 M196 488 l52 7 M276 467 l52 -7 M276 481 l40 -5 M276 495 l52 -7" stroke="#c9c2b4" stroke-width="3.2" />
+                  <path class="page" d="M264 452 L338 441 L341 508 L264 520 Z" fill="#fffdf8" />
+                </g>
+                <g class="laptop prop">
+                  <path d="M160 562 L364 562 L350 536 L174 536 Z" fill="#b8bcc4" stroke="#7d828b" stroke-width="2" />
+                  <rect x="180" y="452" width="164" height="88" rx="8" fill="#8e949e" stroke="#6c717a" stroke-width="2" />
+                  <g transform="translate(262 496)" stroke="#f2b07a" stroke-width="6" stroke-linecap="round">
+                    <line x1="0" y1="-14" x2="0" y2="14" /><line x1="-14" y1="0" x2="14" y2="0" />
+                    <line x1="-10" y1="-10" x2="10" y2="10" /><line x1="10" y1="-10" x2="-10" y2="10" />
+                  </g>
+                </g>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <!-- 不随朝向翻转的特效层（文字类） -->
+        <div id="fx">
+          <span class="fx zzz">z<i>z</i><b>Z</b></span>
+          <span class="fx notes">♪<i>♫</i></span>
+          <span class="fx qmark">?</span>
+          <span class="fx dots"><i></i><i></i><i></i></span>
+          <span class="fx stars">✦<i>✧</i><b>✦</b></span>
+          <span class="fx sparkle">✧<i>✦</i></span>
+          <span class="fx confetti"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="fx bang">!</span>
+        </div>
+        <div id="hit"></div>
+      </div>
+    </div>
+    <script type="module" src="renderer.js"></script>
+  </body>
+</html>
