@@ -111,6 +111,7 @@ hook 脚本（`hooks/claude-pet-hook.mjs`）静默运行、1.5 秒超时、无�
 - **用谁的脑子**（`brain.provider`，默认 `auto`）：
   - 有 `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` → 走 Anthropic API（模型 `brain.apiModel`，按量计费）
   - 否则 → 调用本机 `claude -p`，**用你自己的 Claude Code 登录**，与订阅共用额度，无需 key
+- **两种安装方式都能调**：原生安装的 `claude.exe` 与 npm 全局安装的 `claude.cmd` 都会自动识别；不在 `PATH` 里时还会找 `~/.local/bin`、`%APPDATA%\npm` 等常见目录。也可以用环境变量 `CLAUDE_PET_CLAUDE` 直接指定 CLI 路径
 - **登录提示**：本机 Claude Code 没登录或登录过期时，她会在气泡里提示你运行 `claude auth login`。注意 Claude 桌面应用的登录与命令行是两套，命令行需要在独立终端里单独登录一次
 - **人设**：`brain.persona` 可改，实际系统提示会自动追加名字与当前时间
 
@@ -154,7 +155,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 ## 兼容性
 
 - **操作系统**：在 **Windows 11** 上开发并实测；Electron 与核心逻辑跨平台，macOS / Linux 理论可用但未测试（开始菜单快捷方式、通知顶栏身份为 Windows 专属，其他平台自动跳过）
-- **Claude Code**：在 `2.1.x` 上测试；用到的 hook 事件均为官方事件
+- **Claude Code**：在 `2.1.x` 上测试；用到的 hook 事件均为官方事件；原生安装（`claude.exe`）与 npm 全局安装（`claude.cmd`）都能调用
 - **多显示器**：支持上下 / 左右相邻的多屏，甩抛可跨屏；不同 DPI 的屏幕坐标由 Electron 统一换算
 - **与 dsh-pet 共存**：可以同时运行，两只宠物互不干扰；可共用 dsh-pet 下载的 Electron
 

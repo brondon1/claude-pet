@@ -5,10 +5,12 @@
  * @module claude-pet/src/main/brain
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import Anthropic from '@anthropic-ai/sdk';
 import { DATA_DIR } from './config.js';
+import { spawnClaude } from './claude-cli.js';
 
 const MEMORY_FILE = path.join(DATA_DIR, 'memory.json');
 
@@ -188,36 +190,56 @@ export class Brain {
       .map((m) => `${m.role === 'user' ? '主人' : '你'}：${m.content}`)
       .join('\n');
     const prompt = past ? `之前的对话：\n${past}\n\n主人现在说：${last}\n\n直接回复主人。` : last;
-    const args = ['-p', '--system-prompt', this.system(), '--tools', '', '--no-session-persistence', '--output-format', 'text'];
+    // 系统提示词写进临时文件用 --system-prompt-file 传入：避免多行参数在 Windows 的 cmd.exe
+    // （npm 版 claude.cmd）里被当成命令分隔符。
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-pet-'));
+    const sysFile = path.join(dir, 'system-prompt.txt');
+    fs.writeFileSync(sysFile, this.system(), 'utf8');
+    const args = ['-p', '--system-prompt-file', sysFile, '--tools', '', '--no-session-persistence', '--output-format', 'text'];
     if (c.brain.cliModel) args.push('--model', c.brain.cliModel);
     return new Promise((resolve, reject) => {
-      const child = spawn('claude', args, {
-        cwd: DATA_DIR,
-        env: { ...cleanEnv(process.env), CLAUDE_PET_INTERNAL: '1' },
-        windowsHide: true,
-      });
+      let child;
+      let timer;
+      const cleanup = () => {
+        clearTimeout(timer);
+        fs.rmSync(dir, { recursive: true, force: true });
+      };
+      const fail = (e) => {
+        cleanup();
+        reject(e);
+      };
+      try {
+        child = spawnClaude(args, {
+          cwd: DATA_DIR,
+          env: { ...cleanEnv(process.env), CLAUDE_PET_INTERNAL: '1' },
+        });
+      } catch (e) {
+        fail(e);
+        return;
+      }
       let out = '';
       let err = '';
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         child.kill();
-        reject(new Error('claude CLI 超时（120s）'));
+        fail(new Error('claude CLI 超时（120s）'));
       }, 120_000);
       child.stdout.on('data', (d) => (out += d));
       child.stderr.on('data', (d) => (err += d));
       child.on('error', (e) => {
-        clearTimeout(timer);
-        reject(new Error(`找不到 claude 命令（${e.message}）；可设置 ANTHROPIC_API_KEY 改走 API`));
+        fail(new Error(`启动 claude 失败（${e.message}）；可设置 ANTHROPIC_API_KEY 改走 API`));
       });
       child.on('close', (code) => {
-        clearTimeout(timer);
-        if (code === 0 && out.trim()) return resolve(out.trim());
+        if (code === 0 && out.trim()) {
+          cleanup();
+          return resolve(out.trim());
+        }
         const msg = err.trim() || out.trim() || `claude 退出码 ${code}`;
         if (/authenticat|log ?in|OAuth/i.test(msg)) {
           const e = new Error('Claude Code 没登录或登录过期了');
           e.code = 'AUTH';
-          return reject(e);
+          return fail(e);
         }
-        reject(new Error(msg));
+        fail(new Error(msg));
       });
       child.stdin.end(prompt);
     });
