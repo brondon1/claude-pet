@@ -33,6 +33,16 @@ docs/动作视频提示词.md              scripts/make_sprite.py / make_video.p
 
 ## クイックスタート
 
+### 方法 1：インストーラーをダウンロード（Windows、おすすめ）
+
+[Releases](https://github.com/brondon1/claude-pet/releases/latest) から `claude-pet-Setup-<バージョン>.exe` をダウンロードしてダブルクリック（現在のユーザーにインストールされ、管理者権限は不要）。デスクトップに「小橙」のショートカットができます。Node.js も Electron の別途ダウンロードも不要です。
+
+> インストーラーはコード署名されていないため、初回起動時に Windows SmartScreen が「PC が保護されました」と表示することがあります。「詳細情報 → 実行」を選んでください。
+
+インストール後、下の「Claude Code と接続する」に従って hooks を入れてください（ペットを右クリックするだけで、コマンドラインは不要です）。
+
+### 方法 2：ソースから実行
+
 > 前提：**Node.js ≥ 20** と **Claude Code**（`claude --version` が使えること）がインストール済み。
 
 ```sh
@@ -285,6 +295,12 @@ claude-pet/
 ```sh
 npm test          # JS：物理、アニメーションチェーン、マルチモニターの境界、hook の状態機械、hooks のインストール、表情のリズム……
 npm run test:py   # Python：キーイング、ウォーターマーク除去、レイアウト合わせ、カメラの寄り引き検出（ffmpeg 不要）
+```
+
+## パッケージ化
+
+```sh
+npm run dist      # → dist/claude-pet-Setup-<バージョン>.exe（ローカルの Electron を再利用。設定は package.json の build）
 ```
 
 ## ライセンス

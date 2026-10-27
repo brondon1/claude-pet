@@ -12,6 +12,16 @@ import { parseJsonc, deepMerge } from '../shared/jsonc.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 /** 项目根目录。 */
 export const ROOT = path.resolve(here, '..', '..');
+/**
+ * 重新启动本应用时传给可执行文件的参数：开发时是 electron.exe + 项目根，打包成 exe 后 exe 自己就是应用，不用参数。
+ * （process.defaultApp 只在用 electron.exe 跑项目目录时为 true）
+ */
+export const APP_ARGS = process.defaultApp ? [ROOT] : [];
+/**
+ * 打包后项目文件在 app.asar 里，只有 Electron 自己读得到；要交给外部程序（node 跑 hook、Windows 读图标）的文件
+ * 打包时解到了 app.asar.unpacked（见 package.json 的 build.asarUnpack），路径换过去。开发时原样返回。
+ */
+export const unpacked = (p) => p.replace(/app\.asar(?=[\\/])/, 'app.asar.unpacked');
 /** 用户数据目录：配置、对话记忆、自定义素材。 */
 export const DATA_DIR = process.env.CLAUDE_PET_HOME || path.join(os.homedir(), '.claude-pet');
 /** 用户配置文件路径。 */

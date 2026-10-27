@@ -31,6 +31,16 @@ docs/动作视频提示词.md        scripts/make_sprite.py / make_video.py   sr
 
 ## 快速开始
 
+### 方式一：下载安装包（Windows，推荐）
+
+到 [Releases](https://github.com/brondon1/claude-pet/releases/latest) 下载 `claude-pet-Setup-<版本>.exe`，双击安装（装在当前用户目录，不需要管理员权限），桌面会出现「小橙」快捷方式。不需要 Node.js，也不用单独下载 Electron。
+
+> 安装包没有代码签名，首次运行时 Windows SmartScreen 可能提示「已保护你的电脑」，点「更多信息 → 仍要运行」即可。
+
+装好后照下面的「连上 Claude Code」装 hooks（右键宠物即可，不需要命令行）。
+
+### 方式二：从源码运行
+
 > 前提：已安装 **Node.js ≥ 20** 与 **Claude Code**（`claude --version` 可用）。
 
 ```sh
@@ -283,6 +293,12 @@ claude-pet/
 ```sh
 npm test          # JS：物理、动画链、多屏边界、hook 状态机、hooks 安装、表情节奏……
 npm run test:py   # Python：抠像、去水印、版式对齐、镜头推拉检测（不需要 ffmpeg）
+```
+
+## 打包
+
+```sh
+npm run dist      # → dist/claude-pet-Setup-<版本>.exe（复用本机 Electron，配置见 package.json 的 build）
 ```
 
 ## 许可

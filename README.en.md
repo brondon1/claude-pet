@@ -33,6 +33,16 @@ Swap the character, the actions or the style — the whole pipeline is reproduci
 
 ## Quick start
 
+### Option 1: download the installer (Windows, recommended)
+
+Download `claude-pet-Setup-<version>.exe` from [Releases](https://github.com/brondon1/claude-pet/releases/latest) and double-click it (it installs for the current user, no admin rights needed); a "小橙" shortcut appears on the desktop. No Node.js or separate Electron download required.
+
+> The installer isn't code-signed, so on first run Windows SmartScreen may say "Windows protected your PC" — click "More info → Run anyway".
+
+After installing, set up hooks as described in "Connect to Claude Code" below (just right-click the pet, no command line needed).
+
+### Option 2: run from source
+
 > Prerequisites: **Node.js ≥ 20** and **Claude Code** (`claude --version` works).
 
 ```sh
@@ -285,6 +295,12 @@ claude-pet/
 ```sh
 npm test          # JS: physics, animation chain, multi-monitor bounds, hook state machine, hook install, expression timing…
 npm run test:py   # Python: keying, watermark removal, layout alignment, camera-zoom detection (no ffmpeg needed)
+```
+
+## Packaging
+
+```sh
+npm run dist      # → dist/claude-pet-Setup-<version>.exe (reuses the local Electron; config in package.json "build")
 ```
 
 ## License

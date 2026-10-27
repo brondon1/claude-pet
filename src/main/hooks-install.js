@@ -6,11 +6,13 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { unpacked } from './config.js';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 /** hook 脚本绝对路径。 */
-export const HOOK_SCRIPT = path.resolve(here, '..', '..', 'hooks', 'claude-pet-hook.mjs');
+export const HOOK_SCRIPT = unpacked(path.resolve(here, '..', '..', 'hooks', 'claude-pet-hook.mjs'));
 /** Claude Code 用户级配置。 */
 export const SETTINGS_FILE = path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'settings.json');
 
@@ -72,7 +74,21 @@ export const withPetHooks = (settings, command) => {
  * @param {number} port 宠物 HTTP 端口
  * @returns {string} 命令行
  */
-export const hookCommand = (port) => `node "${HOOK_SCRIPT.replace(/\\/g, '/')}" ${port}`;
+export const hookCommand = (port, runner = 'node') => `${runner} "${HOOK_SCRIPT.replace(/\\/g, '/')}" ${port}`;
+
+/**
+ * 用什么跑 hook 脚本：有 node 就用 node；装的是 exe 版、电脑上又没装 Node.js 时，让桌宠自己的可执行文件以 Node 模式跑
+ * （Claude Code 在 Windows 上用 Git Bash 执行 hook 命令，所以可以写 VAR=1 前缀）。
+ */
+const hookRunner = () => {
+  if (!process.versions.electron) return 'node';
+  try {
+    execFileSync(process.platform === 'win32' ? 'where' : 'which', ['node'], { stdio: 'ignore', windowsHide: true });
+    return 'node';
+  } catch {
+    return `ELECTRON_RUN_AS_NODE=1 "${process.execPath.replace(/\\/g, '/')}"`;
+  }
+};
 
 const readSettings = () => (fs.existsSync(SETTINGS_FILE) ? JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) : {});
 
@@ -96,7 +112,7 @@ export const hooksInstalled = () => {
  * 安装到 ~/.claude/settings.json（会先备份为 settings.json.claude-pet.bak）。
  * @param {number} port 宠物 HTTP 端口
  */
-export const installHooks = (port) => writeSettings(withPetHooks(readSettings(), hookCommand(port)));
+export const installHooks = (port) => writeSettings(withPetHooks(readSettings(), hookCommand(port, hookRunner())));
 
 /** 从 ~/.claude/settings.json 卸载。 */
 export const uninstallHooks = () => writeSettings(withoutPetHooks(readSettings()));

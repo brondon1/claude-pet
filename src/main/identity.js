@@ -10,7 +10,7 @@ import { app, shell } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
-import { ROOT } from './config.js';
+import { ROOT, APP_ARGS, unpacked } from './config.js';
 
 export const APP_ID = 'ClaudePet.XiaoCheng';
 
@@ -37,7 +37,7 @@ export const registerToastIdentity = (name, oldName) => {
   const key = `HKCU\\Software\\Classes\\AppUserModelId\\${APP_ID}`;
   for (const [k, v] of [
     ['DisplayName', name],
-    ['IconUri', path.join(ROOT, 'assets', 'sprite', 'icon.png')],
+    ['IconUri', unpacked(path.join(ROOT, 'assets', 'sprite', 'icon.png'))],
     ['IconBackgroundColor', 'FFFFFFFF'],
   ]) {
     execFile('reg', ['add', key, '/v', k, '/t', 'REG_EXPAND_SZ', '/d', v, '/f'], { windowsHide: true }, (e) => {
@@ -47,10 +47,10 @@ export const registerToastIdentity = (name, oldName) => {
   const link = startMenuLink(name);
   const want = {
     target: process.execPath,
-    args: `"${ROOT}"`,
-    cwd: ROOT,
+    args: APP_ARGS.map((a) => `"${a}"`).join(' '),
+    cwd: process.defaultApp ? ROOT : path.dirname(process.execPath),
     description: `${name}（claude-pet 桌宠）`,
-    icon: path.join(ROOT, 'assets', 'sprite', 'icon.ico'),
+    icon: unpacked(path.join(ROOT, 'assets', 'sprite', 'icon.ico')),
     iconIndex: 0,
     appUserModelId: APP_ID,
   };
@@ -89,7 +89,8 @@ export const retagStrayShortcuts = (name) => {
     try {
       const l = shell.readShortcutLink(p);
       // 只动 Electron 自动生成的那种：指向本 electron.exe、没有启动参数、带着我们的应用 ID
-      if (l.appUserModelId === APP_ID && l.target === process.execPath && !l.args) {
+      // 打包成 exe 后不会有这种快捷方式，而安装器建的快捷方式恰好也长这样，所以只在开发时处理
+      if (process.defaultApp && l.appUserModelId === APP_ID && l.target === process.execPath && !l.args) {
         shell.writeShortcutLink(p, 'update', { appUserModelId: `${APP_ID}.ElectronShim` });
       }
     } catch {

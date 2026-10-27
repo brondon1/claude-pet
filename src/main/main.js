@@ -7,7 +7,7 @@ import { app, BrowserWindow, Menu, Tray, Notification, ipcMain, screen, nativeIm
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { loadConfig, saveUserConfig, saveUserValue, USER_CONFIG, PET_DEFAULTS } from './config.js';
+import { loadConfig, saveUserConfig, saveUserValue, USER_CONFIG, PET_DEFAULTS, APP_ARGS } from './config.js';
 import { startServer } from './server.js';
 import { launchLogin, cleanEnv, onLimitChange } from './brain.js';
 import { hooksInstalled, installHooks, uninstallHooks, SETTINGS_FILE } from './hooks-install.js';
@@ -143,13 +143,13 @@ const onHook = (p) => {
 };
 
 // ===================== 随 Claude 自动启动 =====================
-// autoStart 开启时：注册开机自启的守望进程（src/main/watcher.js，不开窗口），并立刻拉起它；
+// autoStart 开启时：注册开机自启的守望进程（同一个可执行文件带 --watcher，见 index.js / watcher.js，不开窗口），并立刻拉起它；
 // 守望进程看到 Claude 桌面端 / Claude Code 打开就启动桌宠。关闭时注销登录项，守望进程读到配置后自行退出。
-const WATCHER = path.join(here, 'watcher.js');
+const WATCHER_ARGS = [...APP_ARGS, '--watcher'];
 const syncAutoStart = () => {
   const on = config.autoStart !== false;
-  app.setLoginItemSettings({ openAtLogin: on, path: process.execPath, args: [WATCHER], name: 'ClaudePetWatcher' });
-  if (on) spawn(process.execPath, [WATCHER], { detached: true, stdio: 'ignore', env: cleanEnv(process.env) }).unref();
+  app.setLoginItemSettings({ openAtLogin: on, path: process.execPath, args: WATCHER_ARGS, name: 'ClaudePetWatcher' });
+  if (on) spawn(process.execPath, WATCHER_ARGS, { detached: true, stdio: 'ignore', env: cleanEnv(process.env) }).unref();
 };
 
 // ===================== 定时动作 =====================

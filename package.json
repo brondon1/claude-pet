@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "住在桌面上的 Claude 小分身：待机、溜达、拖拽甩抛，跟着 Claude Code 一起思考、敲代码、等你批准、庆祝收工，还能陪你聊两句。",
   "type": "module",
-  "main": "src/main/main.js",
+  "main": "src/main/index.js",
   "bin": {
     "claude-pet": "scripts/start.mjs"
   },
@@ -14,7 +14,8 @@
     "test": "node --test test/*.test.mjs",
     "test:py": "python test/test_make_video.py",
     "sprite": "python scripts/make_sprite.py",
-    "video": "python scripts/make_video.py"
+    "video": "python scripts/make_video.py",
+    "dist": "node scripts/dist.mjs"
   },
   "license": "MIT",
   "engines": {
@@ -25,5 +26,48 @@
   },
   "optionalDependencies": {
     "electron": "^43.3.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "ClaudePet.XiaoCheng",
+    "productName": "claude-pet",
+    "executableName": "claude-pet",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "asar": true,
+    "files": [
+      "package.json",
+      "config.jsonc",
+      "LICENSE",
+      "src/**/*",
+      "hooks/**/*",
+      "assets/sprite/**/*",
+      "assets/webm/*.webm"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": false,
+      "shortcutName": "小橙",
+      "artifactName": "claude-pet-Setup-${version}.exe",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    },
+    "asarUnpack": [
+      "hooks/**",
+      "assets/sprite/icon.*"
+    ]
   }
 }

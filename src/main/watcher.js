@@ -7,7 +7,7 @@
  */
 import { app } from 'electron';
 import { execFile, spawn } from 'node:child_process';
-import { loadConfig, ROOT } from './config.js';
+import { loadConfig, APP_ARGS } from './config.js';
 import { cleanEnv } from './brain.js';
 
 // 与桌宠本体用不同的应用名 → 不同的单实例锁：守望进程只留一个，且不挡桌宠启动
@@ -39,7 +39,7 @@ const petRunning = async (port) => {
 };
 
 const launchPet = () => {
-  const child = spawn(process.execPath, [ROOT], { detached: true, stdio: 'ignore', env: cleanEnv(process.env) });
+  const child = spawn(process.execPath, APP_ARGS, { detached: true, stdio: 'ignore', env: cleanEnv(process.env) });
   child.unref();
 };
 
