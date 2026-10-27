@@ -55,15 +55,15 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
+      "createDesktopShortcut": "always",
       "createStartMenuShortcut": false,
       "shortcutName": "小橙",
       "artifactName": "claude-pet-Setup-${version}.exe",
       "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
+      "uninstallerIcon": "build/icon.ico",
+      "runAfterFinish": true
     },
     "asarUnpack": [
       "hooks/**",
