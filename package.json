@@ -1,6 +1,6 @@
 {
   "name": "claude-pet",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "住在桌面上的 Claude 小分身：待机、溜达、拖拽甩抛，跟着 Claude Code 一起思考、敲代码、等你批准、庆祝收工，还能陪你聊两句。",
   "type": "module",
   "main": "src/main/index.js",
