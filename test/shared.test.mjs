@@ -378,6 +378,21 @@ test('memory chain: observe accumulates, digest summarizes, consolidation links 
   assert.match(m.memoryBlock(r2.chain.items), /- 喜欢摸头/);
 });
 
+test('Stop celebrates only with celebrateChance; long-task notification still fires', () => {
+  const run = (chance, r) => {
+    const t = new SessionTracker({ celebrateChance: chance, rand: () => r, notifyMinBusyMs: 0 });
+    t.apply({ hook_event_name: 'UserPromptSubmit', session_id: 's' }, 0);
+    return t.apply({ hook_event_name: 'Stop', session_id: 's' }, 30_000);
+  };
+  assert.equal(run(0.3, 0.1).oneShot, 'success', 'drew under the chance → celebrate');
+  const quiet = run(0.3, 0.9);
+  assert.equal(quiet.oneShot, undefined, 'otherwise no confetti');
+  assert.equal(quiet.bubble, undefined);
+  assert.ok(quiet.notify, 'notification is unaffected');
+  assert.equal(run(() => 0, 0).oneShot, undefined, 'function form, 0 = never');
+  assert.equal(new SessionTracker().celebrateChance, 1, 'default keeps old behavior');
+});
+
 test('status voice: rewrites in her words, rate-limited, one call at a time', async () => {
   const { createVoice } = await import('../src/shared/voice.js');
   let t = 0;

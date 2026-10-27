@@ -33,7 +33,7 @@ let { config, warnings } = loadConfig();
 let actions = { ...ACTIONS };
 /** 视频动作名 → 时长（秒）。 */
 let videoMeta = {};
-let tracker = new SessionTracker({ texts: config.statusTexts, notifyMinBusyMs: config.notifyMinBusySec * 1000 });
+let tracker = new SessionTracker({ texts: config.statusTexts, notifyMinBusyMs: config.notifyMinBusySec * 1000, celebrateChance: () => config.celebrateChance ?? 0.3 });
 /** @type {Pet[]} */
 let pets = [];
 let tray;
@@ -190,7 +190,7 @@ const reloadConfig = () => {
   const r = loadConfig();
   config = r.config;
   registerToastIdentity(config.pets[0].name, oldName);
-  tracker = new SessionTracker({ texts: config.statusTexts, notifyMinBusyMs: config.notifyMinBusySec * 1000 });
+  tracker = new SessionTracker({ texts: config.statusTexts, notifyMinBusyMs: config.notifyMinBusySec * 1000, celebrateChance: () => config.celebrateChance ?? 0.3 });
   reconcilePets();
   syncAutoStart();
   for (const w of r.warnings) console.warn('[claude-pet]', w);
@@ -307,6 +307,7 @@ const settingsSnapshot = () => ({
   roam: config.roam,
   walkSpeed: config.walkSpeed,
   idleAnimation: config.idleAnimation,
+  celebrateChance: config.celebrateChance,
   memory: config.memory,
   physics: config.physics,
   whisper: { enabled: config.whisper.enabled, minSec: config.whisper.minSec, maxSec: config.whisper.maxSec, cooldownSec: config.whisper.cooldownSec },
@@ -340,6 +341,7 @@ ipcMain.handle('settings:save', (_e, s) => {
     roam: !!s.roam,
     walkSpeed: Number(s.walkSpeed) || 70,
     idleAnimation: { ...config.idleAnimation, ...s.idleAnimation },
+    celebrateChance: Number.isFinite(s.celebrateChance) ? s.celebrateChance : config.celebrateChance,
     memory: { ...config.memory, ...s.memory },
     physics: { ...config.physics, ...s.physics },
     whisper: { ...config.whisper, ...s.whisper },

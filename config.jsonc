@@ -56,6 +56,8 @@
   "notificationsEnabled": true,
   // 一轮任务耗时超过它（秒）才在结束时弹「完成」通知，避免短问答刷屏
   "notifyMinBusySec": 20,
+  // Claude 完成一轮对话时撒彩带说「搞定啦！」的概率（0~1）：不每次都庆祝，1 = 每次，0 = 从不
+  "celebrateChance": 0.3,
   // 状态文案覆盖，键见 src/shared/status.js 的 DEFAULT_TEXTS，例如 { "done": "收工！" }
   "statusTexts": {},
 

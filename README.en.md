@@ -105,7 +105,7 @@ The hook script (`hooks/claude-pet-hook.mjs`) runs silently with a 1.5-second ti
 | `PostToolUse` | Mulling over the result… |
 | `Notification` | Raises her hand with a question mark: "I need your approval!" / "Waiting for your reply~", plus a system notification |
 | `PreCompact` | Organizing memory |
-| `Stop` | Throws confetti: "Done!"; when a turn took longer than `notifyMinBusySec` (default 20 s), a "Claude finished (took N s)" notification |
+| `Stop` | With probability `celebrateChance` (default 30%) she throws confetti: "Done!" — not after every turn; when a turn took longer than `notifyMinBusySec` (default 20 s), a "Claude finished (took N s)" notification |
 | `PostToolUseFailure` / `StopFailure` | X-shaped eyes and a sweat drop: "Something went wrong, let's try again" |
 | `SessionEnd` | "See you next time~" |
 
@@ -169,7 +169,7 @@ Defaults are in [`config.jsonc`](config.jsonc) (every field is commented). **Don
 | `animationWeights` / `roam` / `walkSpeed` | Animation-chain weights, whether to roam, walking speed |
 | `idleAnimation` | Random small actions while idle: `{enabled, minSec, maxSec}` — after each small action ends, another random one plays `minSec`–`maxSec` seconds later (default 15–45); when on, this alone sets how often small actions play; editable in the settings window |
 | `physics` | Gravity, bounciness, ground friction, fling strength, pet-to-pet collisions `petCollision` |
-| `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `statusTexts` | Work-status following and notifications |
+| `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `celebrateChance` / `statusTexts` | Work-status following and notifications; `celebrateChance` is the chance of celebrating when a turn finishes (0–1, default 0.3; set as a percentage in the settings window) |
 | `whisper` / `brain` | Muttering and chat |
 | `schedule` | Scheduled actions (time, action, context, weekdays) |
 | `statusVoice` | Voice of the work-status bubble: `enabled`, `minIntervalSec` (minimum gap between rewrites, default 20 s) |

@@ -71,10 +71,14 @@ export const toolText = (tool, input = {}) => {
  */
 export class SessionTracker {
   /**
-   * @param {{texts?: Partial<typeof DEFAULT_TEXTS>, staleMs?: number, notifyMinBusyMs?: number}} [o] 选项
+   * @param {{texts?: Partial<typeof DEFAULT_TEXTS>, staleMs?: number, notifyMinBusyMs?: number,
+   *   celebrateChance?: number | (() => number), rand?: () => number}} [o] 选项；
+   *   celebrateChance：一轮完成时撒彩带庆祝的概率（0~1，可传函数随配置变化），默认每次都庆祝
    */
   constructor(o = {}) {
     this.texts = { ...DEFAULT_TEXTS, ...(o.texts || {}) };
+    this.celebrateChance = o.celebrateChance ?? 1;
+    this.rand = o.rand ?? Math.random;
     this.staleMs = o.staleMs ?? 10 * 60_000;
     this.notifyMinBusyMs = o.notifyMinBusyMs ?? 20_000;
     /** @type {Map<string, {status:string, text:string, at:number, busySince:number}>} */
@@ -124,7 +128,9 @@ export class SessionTracker {
       case 'Stop': {
         const busy = s ? now - s.busySince : 0;
         this.sessions.delete(id);
-        const out = { oneShot: 'success', bubble: T.done };
+        // 不是每轮都庆祝：按概率撒彩带，没抽中就安安静静回到日常（长任务的系统通知照发）
+        const chance = typeof this.celebrateChance === 'function' ? this.celebrateChance() : this.celebrateChance;
+        const out = this.rand() < (Number.isFinite(chance) ? chance : 1) ? { oneShot: 'success', bubble: T.done } : {};
         if (busy >= this.notifyMinBusyMs) {
           out.notify = { title: 'Claude 完成了', body: `${T.done}（用时 ${Math.round(busy / 1000)} 秒）` };
         }

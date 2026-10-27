@@ -105,7 +105,7 @@ hook スクリプト（`hooks/claude-pet-hook.mjs`）は静かに動作し、1.5
 | `PostToolUse` | 結果をじっくり検討中… |
 | `Notification` | 手を挙げて「？」：「承認してほしいな！」／「返事を待ってるよ~」、さらにシステム通知 |
 | `PreCompact` | 記憶の整理 |
-| `Stop` | 紙吹雪でお祝い「できた！」。1 ターンが `notifyMinBusySec`（デフォルト 20 秒）を超えたら「Claude が完了しました（N 秒）」と通知 |
+| `Stop` | `celebrateChance`（デフォルト 30%）の確率で紙吹雪でお祝い「できた！」。毎ターンではありません。1 ターンが `notifyMinBusySec`（デフォルト 20 秒）を超えたら「Claude が完了しました（N 秒）」と通知 |
 | `PostToolUseFailure` / `StopFailure` | バツ目で冷や汗「ちょっと失敗、もう一回」 |
 | `SessionEnd` | 「またね~」 |
 
@@ -169,7 +169,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 | `animationWeights` / `roam` / `walkSpeed` | アニメーションチェーンの重み、お散歩するか、歩く速さ |
 | `idleAnimation` | 待機中のランダムな小さな動作：`{enabled, minSec, maxSec}`。小さな動作が終わるたびに `minSec`〜`maxSec` 秒（デフォルト 15〜45）後、次をランダムに再生。オンのときは小さな動作の頻度はこれだけで決まります。設定ウィンドウでも変更可 |
 | `physics` | 重力、反発係数、地面の摩擦、投げる強さ、ペット同士の衝突 `petCollision` |
-| `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `statusTexts` | 作業状態への連動と通知 |
+| `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `celebrateChance` / `statusTexts` | 作業状態への連動と通知。`celebrateChance` はターン完了時にお祝いする確率（0〜1、デフォルト 0.3。設定ウィンドウではパーセントで変更） |
 | `whisper` / `brain` | ひとりごとと会話 |
 | `schedule` | 定時アクション（時刻、動作、状況、曜日） |
 | `statusVoice` | 作業状態の吹き出しの口調：`enabled`、`minIntervalSec`（言い換えの最短間隔、デフォルト 20 秒） |

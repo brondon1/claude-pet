@@ -103,7 +103,7 @@ hook 脚本（`hooks/claude-pet-hook.mjs`）静默运行、1.5 秒超时、无�
 | `PostToolUse` | 琢磨一下结果… |
 | `Notification` | 举手冒问号：「需要你批准一下！」/「等你回复~」，并弹系统通知 |
 | `PreCompact` | 整理记忆 |
-| `Stop` | 撒彩带庆祝「搞定啦！」；一轮超过 `notifyMinBusySec`（默认 20 秒）时弹「Claude 完成了（用时 N 秒）」通知 |
+| `Stop` | 按 `celebrateChance`（默认 30%）的概率撒彩带庆祝「搞定啦！」，不是每轮都庆祝；一轮超过 `notifyMinBusySec`（默认 20 秒）时弹「Claude 完成了（用时 N 秒）」通知 |
 | `PostToolUseFailure` / `StopFailure` | 叉叉眼冒汗「出了点岔子，再试试」 |
 | `SessionEnd` | 「下次见~」 |
 
@@ -167,7 +167,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 | `animationWeights` / `roam` / `walkSpeed` | 动画链权重、是否溜达、散步速度 |
 | `idleAnimation` | 待机随机小动作：`{enabled, minSec, maxSec}`，每段小动作播完后隔 `minSec`~`maxSec` 秒（默认 15~45）再随机来一段；开着时小动作频率只由它决定，设置窗口里可改 |
 | `physics` | 重力、反弹系数、地面摩擦、甩出力度、宠物间碰撞 `petCollision` |
-| `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `statusTexts` | 工作状态跟随与通知 |
+| `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `celebrateChance` / `statusTexts` | 工作状态跟随与通知；`celebrateChance` 是完成一轮时庆祝的概率（0~1，默认 0.3，设置窗口里按百分比改） |
 | `whisper` / `brain` | 碎碎念与对话 |
 | `schedule` | 定时动作（时刻、动作、情境、星期几） |
 | `statusVoice` | 工作状态气泡的口吻：`enabled`、`minIntervalSec`（两次改写的最短间隔，默认 20 秒） |
