@@ -17,7 +17,8 @@ import { ACTIONS, withVideoActions } from '../shared/behavior.js';
 import { SessionTracker } from '../shared/status.js';
 import { dueEntries, resolveAction } from '../shared/schedule.js';
 import { collide } from '../shared/collision.js';
-import { recordObservation, maybeConsolidate, memoryItems, memoryLinks, forgetAll, CHAIN_FILE } from './memory.js';
+import { recordObservation, maybeConsolidate, memoryItems, memoryLinks, memoryStats, forgetAll, backfillStats, CHAIN_FILE } from './memory.js';
+import { routineDigest } from '../shared/memory-chain.js';
 import { KINDS } from '../shared/memory-chain.js';
 import { createVoice } from '../shared/voice.js';
 import { DEFAULT_LIMIT_LINES, limitLine, fmtReset } from '../shared/limit.js';
@@ -466,6 +467,10 @@ app.whenReady().then(() => {
   setInterval(checkSchedule, 20_000);
   setInterval(() => pets.forEach((p) => p.refreshThought()), 1500);
   syncAutoStart();
+  // 第一次用记忆链：从 Claude Code 会话记录补录最近的作息，补到了就马上整理一次，让她立刻知道你的作息
+  backfillStats(config.memory)
+    .then((n) => n > 0 && consolidate(true))
+    .catch((e) => console.warn('[claude-pet] 补录作息失败：', e.message));
   screen.on('display-metrics-changed', () => pets.forEach((p) => p.st.mode === 'auto' && p.startThrow(0, 0)));
   startServer(config.port, {
     hook: onHook,
@@ -474,6 +479,8 @@ app.whenReady().then(() => {
     chat: (t, id) => pick(id).chat(t),
     rename: (n, id) => renamePet(pick(id), n),
     openSettings,
+    memory: () => ({ items: memoryItems(), links: memoryLinks(), routine: routineDigest(memoryStats()) }),
+    consolidate: () => consolidate(true),
     throw: (vx, vy, id) => {
       const p = pick(id);
       if (!p || p.st.mode !== 'auto') return false;

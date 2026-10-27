@@ -57,6 +57,7 @@ export const startServer = (port, h) => {
       // 多开时用 ?pet=<id>（或 body.pet）指定哪只宠物，不指定就是第一只
       const qpet = url.searchParams.get('pet') || undefined;
       if (route === 'GET /state') return send(200, h.state(qpet));
+      if (route === 'GET /memory') return send(200, h.memory());
       if (req.method !== 'POST') return send(404, { ok: false, error: 'not found' });
       const body = await readBody(req);
       const pet = body.pet || qpet;
@@ -78,6 +79,8 @@ export const startServer = (port, h) => {
           return send(200, { ok: true });
         case '/throw':
           return send(200, { ok: h.throw(Number(body.vx) || 0, Number(body.vy) || 0, pet) });
+        case '/memory/consolidate':
+          return send(200, { ok: true, result: await h.consolidate() });
         case '/rename':
           if (!body.name) return send(400, { ok: false, error: 'name required' });
           return send(200, { ok: h.rename(String(body.name), pet) });

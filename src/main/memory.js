@@ -4,9 +4,22 @@
  * @module claude-pet/src/main/memory
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import readline from 'node:readline';
 import { DATA_DIR } from './config.js';
-import { emptyChain, observe, shouldConsolidate, activityDigest, consolidatePrompt, applyConsolidation, memoryBlock } from '../shared/memory-chain.js';
+import {
+  emptyChain,
+  emptyStats,
+  observe,
+  addToStats,
+  mergeStats,
+  shouldConsolidate,
+  activityDigest,
+  consolidatePrompt,
+  applyConsolidation,
+  memoryBlock,
+} from '../shared/memory-chain.js';
 
 export const CHAIN_FILE = path.join(DATA_DIR, 'memory-chain.json');
 
@@ -30,6 +43,65 @@ const save = () => {
 
 /** 当前记忆条目。 */
 export const memoryItems = () => load().items;
+
+/** 长期作息统计。 */
+export const memoryStats = () => load().stats;
+
+/**
+ * 第一次用记忆链时，从 Claude Code 的会话记录（~/.claude/projects/**\/*.jsonl）补录最近 days 天的作息：
+ * 只取你每次发消息的时间和所在项目名，不读也不存消息内容。只跑一次（stats.backfilledAt 记着），后台流式读取不卡界面。
+ * @param {any} cfg config.memory
+ * @param {number} [days]
+ * @returns {Promise<number>} 补录了多少条
+ */
+export const backfillStats = async (cfg, days = 60) => {
+  if (cfg?.enabled === false || load().stats?.backfilledAt) return 0;
+  const root = path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'projects');
+  const since = Date.now() - days * 86_400_000;
+  const cutoff = Date.now();
+  let files = [];
+  try {
+    for (const dir of fs.readdirSync(root, { withFileTypes: true })) {
+      if (!dir.isDirectory()) continue;
+      for (const f of fs.readdirSync(path.join(root, dir.name))) {
+        const p = path.join(root, dir.name, f);
+        if (f.endsWith('.jsonl') && fs.statSync(p).mtimeMs >= since) files.push(p);
+      }
+    }
+  } catch {
+    files = [];
+  }
+  let stats = emptyStats();
+  const seen = new Set();
+  let count = 0;
+  for (const file of files) {
+    const rl = readline.createInterface({ input: fs.createReadStream(file, 'utf8'), crlfDelay: Infinity });
+    for await (const line of rl) {
+      // 先用字符串粗筛，只解析「你发的消息」那几行
+      if (!line.includes('"type":"user"') || line.includes('"tool_result"') || line.includes('"isSidechain":true')) continue;
+      let o;
+      try {
+        o = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      const c = o.message?.content;
+      const text = typeof c === 'string' ? c : Array.isArray(c) ? c.find((b) => b.type === 'text')?.text : '';
+      if (!text || o.isMeta || /^\s*<(command|local-command|system)/.test(text) || seen.has(o.uuid)) continue;
+      const t = Date.parse(o.timestamp);
+      if (!(t >= since && t < cutoff)) continue;
+      seen.add(o.uuid);
+      stats = addToStats(stats, { t: 'prompt', p: o.cwd ? path.basename(o.cwd) : undefined }, new Date(t));
+      count++;
+    }
+  }
+  // 补录期间可能又记了新观察：两份合并
+  const c = load();
+  chain = { ...c, stats: { ...mergeStats(stats, c.stats), backfilledAt: new Date().toISOString() } };
+  save();
+  console.log(`[claude-pet] 从 Claude Code 会话记录补录作息：${files.length} 个会话、${count} 条消息`);
+  return count;
+};
 
 /** 记忆链（整理历史）。 */
 export const memoryLinks = () => load().links;
@@ -65,7 +137,7 @@ export const maybeConsolidate = async (cfg, brain, { name, force = false, onDone
   if (cfg?.enabled === false || busy) return null;
   const c = load();
   if (!force && !shouldConsolidate(c, new Date(), cfg)) return null;
-  if (!c.log.length) return null;
+  if (!c.log.length && !force) return null;
   busy = true;
   try {
     const maxItems = cfg?.maxItems ?? 30;

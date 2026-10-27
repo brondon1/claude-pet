@@ -378,6 +378,46 @@ test('memory chain: observe accumulates, digest summarizes, consolidation links 
   assert.match(m.memoryBlock(r2.chain.items), /- 喜欢摸头/);
 });
 
+test('memory chain: long-term routine stats survive consolidation and read as a schedule', async () => {
+  const m = await import('../src/shared/memory-chain.js');
+  let c = m.emptyChain();
+  const at = (d, h, min = 0) => new Date(2026, 9, d, h, min);
+  // 10/19 (Mon) – 10/23 (Fri): start around 9:30, end around 20:30, quiet at noon; one late night to 01:10
+  for (const d of [19, 20, 21, 22, 23]) {
+    for (const [h, min] of [[9, 30], [10, 15], [11, 0], [14, 0], [15, 30], [17, 0], [20, 30]]) {
+      c = m.observe(c, { t: 'prompt', p: 'claude-pet' }, at(d, h, min));
+    }
+  }
+  c = m.observe(c, { t: 'prompt', p: 'claude-pet' }, at(24, 1, 10)); // Sat 01:10 → still Friday's late night
+  c = m.observe(c, { t: 'click', s: '头' }, at(25, 15)); // one click on Sunday: not a work day
+  const fri = c.stats.days['2026-10-23'];
+  assert.equal(m.fmtMin(fri.last), '次日 01:10', 'before 5am counts as the previous day');
+  assert.equal(c.stats.days['2026-10-24'], undefined);
+  const r = m.routineDigest(c.stats);
+  assert.match(r, /有记录的日子：6 天/);
+  assert.match(r, /工作日（5 天）：平均 09:30 开始干活/);
+  assert.match(r, /最早 09:30，最晚 次日 01:10/);
+  assert.doesNotMatch(r, /周末（/, 'a single click on Sunday is not a work day');
+  assert.match(r, /熬夜（23 点后还在忙）：1 \/ 5 天/);
+  assert.match(r, /中午 12~14 点明显很少用 Claude/);
+  assert.match(r, /最常在：周/);
+
+  // consolidation clears the log but keeps the stats, and the prompt carries the routine
+  const p = m.consolidatePrompt(c, m.activityDigest(c.log), { name: '小橙' });
+  assert.match(p, /长期作息统计/);
+  assert.match(p, /kind=schedule/);
+  assert.match(m.activityDigest(c.log), /观察时间（本地时间）：10月19日 09:30/, 'local time, not UTC');
+  const done = m.applyConsolidation(c, '{"items":[{"kind":"schedule","text":"工作日一般 9:30 开工"}],"note":""}', at(26, 10));
+  assert.equal(done.chain.log.length, 0);
+  assert.deepEqual(done.chain.stats, c.stats);
+  assert.equal(done.chain.items[0].kind, 'schedule');
+
+  const merged = m.mergeStats(c.stats, m.addToStats(m.emptyStats(), { t: 'prompt' }, at(19, 8, 0)));
+  assert.equal(m.fmtMin(merged.days['2026-10-19'].first), '08:00');
+  assert.equal(merged.days['2026-10-19'].n, 8);
+  assert.equal(m.routineDigest(m.emptyStats()), '（还没有作息记录）');
+});
+
 test('Stop celebrates only with celebrateChance; long-task notification still fires', () => {
   const run = (chance, r) => {
     const t = new SessionTracker({ celebrateChance: chance, rand: () => r, notifyMinBusyMs: 0 });
