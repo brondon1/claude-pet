@@ -86,6 +86,17 @@
     { "time": "20:20", "action": ["dance", "wave"], "context": "晚上八点二十，主人下班了", "days": [1, 2, 3, 4, 5] }
   ],
 
+  // ===================== Claude Code 额度用完 =====================
+  // 报「You've hit your session limit · resets 9:10pm」时，所有宠物做 action 并说一句 lines 里的话；到恢复时刻再做 recoverAction、说 recoverLines。
+  // 这时调不了 Claude Code，所以台词只能是现成的，随机挑一句；{name} = 名字，{reset} = 恢复时刻（如 21:10）。action 同样可写数组
+  "limit": {
+    "enabled": true,
+    "action": ["sleep"],
+    "recoverAction": ["stretch", "click-happy"],
+    "lines": [],
+    "recoverLines": []
+  },
+
   // ===================== 对话（右键 →「和我聊天」） =====================
   "brain": {
     // auto：有 ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN 就走 API，否则走本机 claude CLI（用你的 Claude Code 登录，无需 key）

@@ -71,6 +71,8 @@ hook 脚本（`hooks/claude-pet-hook.mjs`）静默运行、1.5 秒超时、无�
 - **屏幕漫游**：朝面向方向溜达，到工作区边缘转身
 - **点击 / 拖拽 / 甩抛**：点击 Q 弹、随机做个小反应（开心 / 害羞 / 晕乎乎），并通过 Claude Code 回你一句；拖拽过阻尼弹簧跟手；甩出走抛物线、碰边反弹、落地摩擦停稳并挤压一下，摔太狠会晕
 - **多屏穿越**：甩抛时，紧挨另一块屏的那一侧（上 / 下 / 左 / 右）不反弹，直接飞过去、掉下去，最终落在最下面那块屏的地面
+- **多开与碰撞**：可以同时养好几只（设置里「+ 添加宠物」），每只有自己的名字、大小、位置、人设、对话记忆；甩出去的宠物会和别的宠物弹性碰撞，被撞到的也会被撞飞（`physics.petCollision` 可关）
+- **设置窗口**：右键 / 托盘「设置…」，图形化改宠物列表、开关、碎碎念间隔、物理参数，保存即生效
 - **跟随 Claude Code 工作状态**：思考 / 敲代码 / 等你批准 / 整理记忆 / 庆祝 / 出错 六档动画 + 常驻气泡（见下节）
 - **系统通知**：需要你批准、等你回复、长任务完成时弹 Windows 通知（顶栏显示「小橙」和头像）
 - **碎碎念与对话**：随机时间、做小动作或 Claude Code 事件后，调用 Claude Code 冒一句碎碎念；右键「和我聊天…」与她对话，记忆持久化
@@ -113,7 +115,8 @@ hook 脚本（`hooks/claude-pet-hook.mjs`）静默运行、1.5 秒超时、无�
   - 否则 → 调用本机 `claude -p`，**用你自己的 Claude Code 登录**，与订阅共用额度，无需 key
 - **两种安装方式都能调**：原生安装的 `claude.exe` 与 npm 全局安装的 `claude.cmd` 都会自动识别；不在 `PATH` 里时还会找 `~/.local/bin`、`%APPDATA%\npm` 等常见目录。也可以用环境变量 `CLAUDE_PET_CLAUDE` 直接指定 CLI 路径
 - **登录提示**：本机 Claude Code 没登录或登录过期时，她会在气泡里提示你运行 `claude auth login`。注意 Claude 桌面应用的登录与命令行是两套，命令行需要在独立终端里单独登录一次
-- **人设**：`brain.persona` 可改，实际系统提示会自动追加名字与当前时间
+- **额度用完**：Claude Code 报「You've hit your session limit · resets 9:10pm」这类错误时，所有宠物一起暂停调用，到恢复时刻前碎碎念静默跳过、聊天直接提示「额度用完啦，21:10 恢复~」，不会反复白跑 `claude`。刚用完时所有宠物一起打瞌睡并说一句什么时候恢复，到点伸个懒腰报告满血复活（动作和台词见 `limit` 配置；这时调不了 Claude Code，所以这两句用现成台词随机挑）
+- **人设**：`brain.persona` 是默认人设，每只宠物可单独设 `persona` 覆盖；实际系统提示会自动追加名字与当前时间
 
 ## 🔌 对外接口
 
@@ -128,6 +131,7 @@ hook 脚本（`hooks/claude-pet-hook.mjs`）静默运行、1.5 秒超时、无�
 | `POST /play {action}` | 点播动作（内置动作名见 `src/shared/behavior.js`，视频动作用文件名） |
 | `POST /chat {text}` | 和她对话，返回 `{reply}` |
 | `POST /settings` | 打开设置窗口 |
+| 任意接口加 `?pet=<id>`（或 body 里带 `pet`） | 指定哪只宠物，默认第一只 |
 | `POST /throw {vx, vy}` | 把她按给定初速度（px/s）甩出去 |
 | `POST /rename {name}` | 给她改名（与右键「给我改名字…」相同） |
 
@@ -142,15 +146,15 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 
 | 字段 | 说明 |
 |---|---|
-| `name` | 宠物名字，默认「小橙」（人设、通知、开始菜单都用它）；右键「给我改名字…」可直接改 |
+| `pets` | 宠物列表，每只 `{id, name, size, position, offsetX, offsetY, workStatusEnabled, whisperEnabled, fixed, persona}`；第一只默认叫「小橙」，通知顶栏显示它的名字。旧版顶层 `name` / `size` 会自动迁移到第一只 |
 | `autoStart` | 打开 Claude（桌面端或 Claude Code）时自动启动桌宠，默认开；右键「打开 Claude 时自动启动」可直接开关 |
-| `size` | 形象高度（px），默认 200，与 dsh-pet 女仆等高 |
-| `position` | 初始角落：`bottom-right` / `bottom-left` / `top-right` / `top-left` |
+| `pets[].size` / `position` / `offsetX` / `offsetY` | 形象高度（默认 200，与 dsh-pet 女仆等高）、初始角落与偏移 |
 | `animationWeights` / `roam` / `walkSpeed` | 动画链权重、是否溜达、散步速度 |
-| `physics` | 重力、反弹系数、地面摩擦、甩出力度 |
+| `physics` | 重力、反弹系数、地面摩擦、甩出力度、宠物间碰撞 `petCollision` |
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `statusTexts` | 工作状态跟随与通知 |
 | `whisper` / `brain` | 碎碎念与对话 |
 | `schedule` | 定时动作（时刻、动作、情境、星期几） |
+| `limit` | 额度用完 / 恢复时做的动作和说的话（`{name}`、`{reset}` 占位） |
 
 ## 兼容性
 

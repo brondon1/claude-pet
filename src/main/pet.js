@@ -410,8 +410,9 @@ export class Pet {
       return reply;
     } catch (e) {
       if (e.code === 'AUTH') this.ctx.promptLogin(this, true);
+      else if (e.code === 'LIMIT') { if (!e.fresh) this.say(`${e.message}~`, 8000); }
       else this.say(`呜，脑子卡住了：${String(e.message).slice(0, 60)}`, 8000);
-      this.st.queue.push('error');
+      if (e.code !== 'LIMIT') this.st.queue.push('error'); // 额度用完由 limit.action 接管（默认打瞌睡）
       throw e;
     } finally {
       this.chatting = false;

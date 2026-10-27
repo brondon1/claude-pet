@@ -11,6 +11,41 @@ import { spawn } from 'node:child_process';
 import Anthropic from '@anthropic-ai/sdk';
 import { DATA_DIR } from './config.js';
 import { spawnClaude } from './claude-cli.js';
+import { isLimitError, parseReset, fmtReset } from '../shared/limit.js';
+
+/**
+ * Claude Code 额度用尽后的暂停：额度是整个账号共用的，所有宠物一起停，到恢复时刻之前不再调用
+ * （否则每次碎碎念、点击回应都会白跑一次 claude 再失败）。
+ */
+let pausedUntil = 0;
+// fresh：这次调用正好触发了「额度用完」反应（宠物已经说过台词，调用方别再盖掉）
+const limitError = (resetAt, fresh = false) => {
+  const e = new Error(`Claude Code 额度用完啦，${fmtReset(resetAt)} 恢复`);
+  e.code = 'LIMIT';
+  e.resetAt = resetAt;
+  e.fresh = fresh;
+  return e;
+};
+/** 当前是否处于额度暂停中；是则返回恢复时刻。 */
+export const limitPausedUntil = () => (Date.now() < pausedUntil ? new Date(pausedUntil) : null);
+
+/** 额度用完 / 恢复的监听：fn('start', resetAt) 在刚进入暂停时调一次，fn('recover') 在到点恢复时调一次。 */
+const limitListeners = new Set();
+export const onLimitChange = (fn) => limitListeners.add(fn);
+const emitLimit = (...args) => limitListeners.forEach((fn) => { try { fn(...args); } catch (e) { console.warn('[claude-pet]', e); } });
+let recoverTimer = null;
+const enterLimit = (resetAt) => {
+  const fresh = !limitPausedUntil();
+  pausedUntil = resetAt.getTime();
+  clearTimeout(recoverTimer);
+  recoverTimer = setTimeout(() => {
+    pausedUntil = 0;
+    console.log('[claude-pet] Claude Code 额度恢复了');
+    emitLimit('recover');
+  }, Math.max(1000, pausedUntil - Date.now()));
+  if (fresh) emitLimit('start', resetAt);
+  return fresh;
+};
 
 const MEMORY_FILE = path.join(DATA_DIR, 'memory.json');
 
@@ -122,6 +157,7 @@ export class Brain {
     const prompt =
       `随口碎碎念一句，像自言自语，可以俏皮、发呆、关心主人或者冒出个小想法。` +
       `这次的话题方向：${topic}。20 字以内，只输出这句话本身，不加引号。${recent}`;
+    if (limitPausedUntil()) return null; // 额度暂停中：静默跳过，不再白跑一次 claude
     try {
       // 碎碎念固定走本机 Claude Code（claude -p），用你的 Claude Code 登录现想一句
       const line = (await this.askCli([{ role: 'user', content: prompt }])).split('\n')[0].replace(/^["“「]|["”」]$/g, '').trim();
@@ -129,6 +165,7 @@ export class Brain {
       this.recentWhispers = [...this.recentWhispers, line].slice(-6);
       return line;
     } catch (e) {
+      if (e.code === 'LIMIT') return null;
       console.warn('[claude-pet] 碎碎念调用 Claude Code 失败，这一句不说了：', e.message);
       if (e.code === 'AUTH') this.onAuthError?.();
       return null;
@@ -183,6 +220,8 @@ export class Brain {
 
   /** 走本机 claude CLI：禁用工具、不落会话，设 CLAUDE_PET_INTERNAL 让自家 hook 忽略这次调用。 */
   askCli(messages) {
+    const paused = limitPausedUntil();
+    if (paused) return Promise.reject(limitError(paused));
     const c = this.getConfig();
     const last = messages[messages.length - 1].content;
     const past = messages
@@ -234,6 +273,12 @@ export class Brain {
           return resolve(out.trim());
         }
         const msg = err.trim() || out.trim() || `claude 退出码 ${code}`;
+        if (isLimitError(msg)) {
+          const resetAt = parseReset(msg);
+          const fresh = enterLimit(resetAt);
+          console.warn(`[claude-pet] Claude Code 额度用完，暂停调用到 ${resetAt.toLocaleString()}`);
+          return fail(limitError(resetAt, fresh));
+        }
         if (/authenticat|log ?in|OAuth/i.test(msg)) {
           const e = new Error('Claude Code 没登录或登录过期了');
           e.code = 'AUTH';

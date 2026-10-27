@@ -9,7 +9,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadConfig, saveUserConfig, saveUserValue, USER_CONFIG, PET_DEFAULTS } from './config.js';
 import { startServer } from './server.js';
-import { launchLogin, cleanEnv } from './brain.js';
+import { launchLogin, cleanEnv, onLimitChange } from './brain.js';
 import { hooksInstalled, installHooks, uninstallHooks, SETTINGS_FILE } from './hooks-install.js';
 import { APP_ID, registerToastIdentity, retagStrayShortcuts } from './identity.js';
 import { Pet } from './pet.js';
@@ -17,6 +17,7 @@ import { ACTIONS, withVideoActions } from '../shared/behavior.js';
 import { SessionTracker } from '../shared/status.js';
 import { dueEntries, resolveAction } from '../shared/schedule.js';
 import { collide } from '../shared/collision.js';
+import { DEFAULT_LIMIT_LINES, limitLine, fmtReset } from '../shared/limit.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const TICK_MS = 16;
@@ -162,6 +163,21 @@ const checkSchedule = () => {
     if (entry.context) primary()?.whisperNow({ context: entry.context, force: true });
   }
 };
+
+// ===================== 额度用完 / 恢复 =====================
+// 所有宠物一起反应：额度用完打瞌睡并说什么时候恢复，到点伸个懒腰报告满血复活
+onLimitChange((kind, resetAt) => {
+  const cfg = config.limit ?? {};
+  if (cfg.enabled === false) return;
+  const start = kind === 'start';
+  const action = resolveAction(start ? cfg.action : cfg.recoverAction, actions);
+  const lines = (start ? cfg.lines : cfg.recoverLines)?.length ? (start ? cfg.lines : cfg.recoverLines) : DEFAULT_LIMIT_LINES[kind];
+  const reset = resetAt ? fmtReset(resetAt) : '';
+  for (const pet of pets) {
+    if (action) pet.doAction(action);
+    pet.say(limitLine(lines, { name: pet.def.name, reset }), 10_000);
+  }
+});
 
 // ===================== 宠物互撞 =====================
 // 至少一只在飞（被甩出去）时检测：撞上就按动量守恒弹开；被撞到的、原本在地上的那只也会被撞飞

@@ -291,3 +291,26 @@ test('pet collision conserves momentum, separates overlap and ignores separating
   assert.equal(bb.y, 50 + 130);
   assert.equal(bb.x + bb.w / 2, 100 + 240);
 });
+
+test('usage-limit errors are detected and the reset time is parsed', async () => {
+  const { isLimitError, parseReset, fmtReset } = await import('../src/shared/limit.js');
+  const msg = "You've hit your session limit · resets 9:10pm (Asia/Shanghai)";
+  assert.ok(isLimitError(msg));
+  assert.ok(!isLimitError('Failed to authenticate'));
+  const now = new Date(2026, 9, 26, 18, 20);
+  const t = parseReset(msg, now);
+  assert.deepEqual([t.getDate(), t.getHours(), t.getMinutes()], [26, 21, 10]);
+  assert.equal(fmtReset(t, now), '21:10');
+  const late = new Date(2026, 9, 26, 22, 0);
+  assert.equal(parseReset(msg, late).getDate(), 27, 'already past today → tomorrow');
+  assert.equal(fmtReset(parseReset(msg, late), late), '明天 21:10');
+  assert.equal(parseReset('limit reached', now).getTime() - now.getTime(), 30 * 60_000, 'fallback');
+  assert.equal(parseReset('resets 12am', now).getHours(), 0);
+});
+
+test('limitLine fills name and reset, falls back to defaults', async () => {
+  const { limitLine, DEFAULT_LIMIT_LINES } = await import('../src/shared/limit.js');
+  assert.equal(limitLine(['{name} 到 {reset} 醒'], { name: '小橙', reset: '21:10' }), '小橙 到 21:10 醒');
+  assert.equal(limitLine(['{unknown}'], {}), '{unknown}');
+  assert.equal(limitLine([], { reset: '21:10' }, () => 0), DEFAULT_LIMIT_LINES.start[0].replace('{reset}', '21:10'));
+});
