@@ -132,6 +132,7 @@ The hook script (`hooks/claude-pet-hook.mjs`) runs silently with a 1.5-second ti
 - **Works with both install methods**: the native `claude.exe` and the npm-global `claude.cmd` are both detected automatically; if it's not on `PATH`, common directories like `~/.local/bin` and `%APPDATA%\npm` are searched too. You can also point to the CLI directly with the `CLAUDE_PET_CLAUDE` environment variable
 - **Login prompt**: when local Claude Code isn't logged in or the login has expired, her bubble tells you to run `claude auth login`. Note that the Claude desktop app and the command line log in separately; the CLI needs its own login once in a standalone terminal
 - **Out of quota**: when Claude Code reports something like "You've hit your session limit · resets 9:10pm", all pets stop calling it; until the reset time, muttering is skipped silently and chat replies right away with "额度用完啦，21:10 恢复~" (out of quota, back at 21:10) instead of running `claude` over and over. When the quota first runs out, all pets doze off and say when it'll come back; at the reset time they stretch and announce they're fully recharged (actions and lines are in the `limit` config; since Claude Code can't be called at that point, these two lines are picked at random from ready-made ones)
+- **Memory chain — she gets to know you over time**: she notes which projects you use Claude Code in, when, and what you ask it (only the first 80 characters of each prompt), plus what you chat about, where you like to click her and which actions you ask for. Once enough has built up she has Claude Code distill it into "what she knows about you" (preferences / habits / projects / facts / relationship, up to 30 items) — keeping what still holds, fixing what's outdated, adding new findings. Each pass is one link in the memory chain (what was learned, what was dropped, a line from her), and when she learns something new she tells you in her own words. These memories go into chat and mutterings, so she understands you better the more you use her. Right-click → "记忆链" to see what she remembers, consolidate now, turn it off or make her forget everything; data stays on this machine in `~/.claude-pet/memory-chain.json`, shared by all pets
 - **Persona**: `brain.persona` is the default persona, and each pet can override it with its own `persona`; the actual system prompt automatically appends the name and current time
 
 ## 🔌 External API
@@ -171,6 +172,7 @@ Defaults are in [`config.jsonc`](config.jsonc) (every field is commented). **Don
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `statusTexts` | Work-status following and notifications |
 | `whisper` / `brain` | Muttering and chat |
 | `schedule` | Scheduled actions (time, action, context, weekdays) |
+| `memory` | Memory chain: `enabled`, `observePrompts` (whether to record what you ask Claude), `consolidateEvery` (points needed before a consolidation pass; an observation is 1, a chat 3; default 12), `minIntervalMin`, `maxItems`, … |
 | `limit` | Action and lines when the quota runs out / comes back (`{name}`, `{reset}` placeholders) |
 
 ## Compatibility

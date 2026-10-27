@@ -130,6 +130,7 @@ hook 脚本（`hooks/claude-pet-hook.mjs`）静默运行、1.5 秒超时、无�
 - **两种安装方式都能调**：原生安装的 `claude.exe` 与 npm 全局安装的 `claude.cmd` 都会自动识别；不在 `PATH` 里时还会找 `~/.local/bin`、`%APPDATA%\npm` 等常见目录。也可以用环境变量 `CLAUDE_PET_CLAUDE` 直接指定 CLI 路径
 - **登录提示**：本机 Claude Code 没登录或登录过期时，她会在气泡里提示你运行 `claude auth login`。注意 Claude 桌面应用的登录与命令行是两套，命令行需要在独立终端里单独登录一次
 - **额度用完**：Claude Code 报「You've hit your session limit · resets 9:10pm」这类错误时，所有宠物一起暂停调用，到恢复时刻前碎碎念静默跳过、聊天直接提示「额度用完啦，21:10 恢复~」，不会反复白跑 `claude`。刚用完时所有宠物一起打瞌睡并说一句什么时候恢复，到点伸个懒腰报告满血复活（动作和台词见 `limit` 配置；这时调不了 Claude Code，所以这两句用现成台词随机挑）
+- **记忆链：越用越懂你**：她会记下你在哪个项目、什么时候用 Claude Code、让它做了什么（提问只记前 80 字），以及和她聊了什么、爱点哪里、常让她做什么动作；攒够了就调用 Claude Code 把这些整理成「她对你的了解」（偏好 / 习惯 / 项目 / 事实 / 相处，最多 30 条），保留仍然成立的、修正过时的、加上新发现。每次整理是记忆链上的一环（学到了什么、忘掉了什么、她的一句感想），学到新东西时她会用自己的话告诉你。这些记忆会带进聊天和碎碎念，所以越用越懂你。右键「记忆链」可以查看她记得的你、立刻整理、关掉或让她忘掉一切；数据只存在本机 `~/.claude-pet/memory-chain.json`，所有宠物共用
 - **人设**：`brain.persona` 是默认人设，每只宠物可单独设 `persona` 覆盖；实际系统提示会自动追加名字与当前时间
 
 ## 🔌 对外接口
@@ -169,6 +170,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `statusTexts` | 工作状态跟随与通知 |
 | `whisper` / `brain` | 碎碎念与对话 |
 | `schedule` | 定时动作（时刻、动作、情境、星期几） |
+| `memory` | 记忆链：`enabled`、`observePrompts`（是否记你对 Claude 说的话）、`consolidateEvery`（攒够多少分整理一次，观察 1 分、聊天 3 分，默认 12）、`minIntervalMin`、`maxItems` 等 |
 | `limit` | 额度用完 / 恢复时做的动作和说的话（`{name}`、`{reset}` 占位） |
 
 ## 兼容性

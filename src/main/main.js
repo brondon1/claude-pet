@@ -17,6 +17,8 @@ import { ACTIONS, withVideoActions } from '../shared/behavior.js';
 import { SessionTracker } from '../shared/status.js';
 import { dueEntries, resolveAction } from '../shared/schedule.js';
 import { collide } from '../shared/collision.js';
+import { recordObservation, maybeConsolidate, memoryItems, memoryLinks, forgetAll, CHAIN_FILE } from './memory.js';
+import { KINDS } from '../shared/memory-chain.js';
 import { DEFAULT_LIMIT_LINES, limitLine, fmtReset } from '../shared/limit.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -68,6 +70,66 @@ const ctx = {
   tracker: () => tracker,
   promptLogin,
   globalMenu: (pet) => globalMenu(pet),
+  observe: (ev) => observe(ev),
+};
+
+// ===================== 记忆链 =====================
+// 观察主人怎么用 Claude Code、和宠物怎么相处，攒够了就让 Claude Code 整理成「她对主人的了解」（src/main/memory.js）
+const consolidate = (force = false) => {
+  const pet = primary();
+  if (!pet) return Promise.resolve(null);
+  return maybeConsolidate(config.memory, pet.brain, {
+    name: pet.name,
+    force,
+    // 学到新东西时，用她自己生成的一句话告诉主人
+    onDone: (r) => r.note && pet.st.mode === 'auto' && !pet.chatting && pet.say(r.note, 8000),
+  });
+};
+const observe = (ev) => {
+  recordObservation(config.memory, ev);
+  consolidate();
+};
+
+/** 右键「她记得的你…」：列出记忆条目和最近几环。 */
+const showMemory = async () => {
+  const items = memoryItems();
+  const links = memoryLinks();
+  const body = items.length
+    ? items.map((m, i) => `${i + 1}. 【${KINDS[m.kind] ?? m.kind}】${m.text}`).join('\n')
+    : '还没有整理出记忆。多和她聊聊、多用用 Claude Code，攒够了她会自己整理。';
+  const recent = links
+    .slice(-3)
+    .reverse()
+    .map((l) => `${l.at.slice(0, 16).replace('T', ' ')}  +${l.added.length} / -${l.removed.length}${l.note ? `  「${l.note}」` : ''}`)
+    .join('\n');
+  const { response } = await dialog.showMessageBox({
+    type: 'info',
+    title: `${primary()?.name ?? '小橙'}记得的你`,
+    message: `${primary()?.name ?? '小橙'}记得的你（${items.length} 条，记忆链 ${links.length} 环）`,
+    detail: recent ? `${body}\n\n最近的整理：\n${recent}` : body,
+    buttons: ['好', '现在整理一下', '打开记忆文件'],
+    defaultId: 0,
+  });
+  if (response === 1) {
+    primary()?.say('让我想想你最近都在干嘛…', 0);
+    const r = await consolidate(true);
+    primary()?.say(r ? r.note || `记忆整理好啦，现在记得 ${memoryItems().length} 件关于你的事` : '最近没什么新的可以整理的~', 6000);
+  }
+  if (response === 2) shell.openPath(CHAIN_FILE);
+};
+
+const forgetMemory = async () => {
+  const { response } = await dialog.showMessageBox({
+    type: 'warning',
+    message: '让她忘掉关于你的一切？',
+    detail: '记忆条目、记忆链和观察记录都会删除，不影响各只宠物的对话记录。',
+    buttons: ['忘掉', '取消'],
+    defaultId: 1,
+    cancelId: 1,
+  });
+  if (response !== 0) return;
+  forgetAll();
+  primary()?.say('咦…我们是第一次见面吗？', 5000);
 };
 
 // ===================== 宠物列表 =====================
@@ -130,6 +192,15 @@ const reloadConfig = () => {
 // ===================== Claude Code 事件 =====================
 const onHook = (p) => {
   const fx = tracker.apply(p);
+  // 记忆链的观察：在哪个项目、什么时候、让 Claude 做了什么（提问只记前 80 字，可在 memory.observePrompts 关掉）
+  const project = p.cwd ? path.basename(String(p.cwd)) : undefined;
+  const ev = {
+    UserPromptSubmit: { t: 'prompt', p: project, s: config.memory?.observePrompts !== false ? String(p.prompt ?? '').slice(0, 80) : undefined },
+    SessionStart: { t: 'session', p: project },
+    Stop: { t: 'done', p: project },
+    StopFailure: { t: 'fail', p: project },
+  }[p.hook_event_name];
+  if (ev) observe(ev);
   if (fx.notify) notify(fx.notify.title, fx.notify.body);
   // 事件气泡先显示，过几秒随机挑一只宠物顺口评论一句
   const context = {
@@ -228,6 +299,7 @@ const settingsSnapshot = () => ({
   roam: config.roam,
   walkSpeed: config.walkSpeed,
   idleAnimation: config.idleAnimation,
+  memory: config.memory,
   physics: config.physics,
   whisper: { enabled: config.whisper.enabled, minSec: config.whisper.minSec, maxSec: config.whisper.maxSec, cooldownSec: config.whisper.cooldownSec },
   brain: { persona: config.brain.persona, memoryRounds: config.brain.memoryRounds, cliModel: config.brain.cliModel },
@@ -260,6 +332,7 @@ ipcMain.handle('settings:save', (_e, s) => {
     roam: !!s.roam,
     walkSpeed: Number(s.walkSpeed) || 70,
     idleAnimation: { ...config.idleAnimation, ...s.idleAnimation },
+    memory: { ...config.memory, ...s.memory },
     physics: { ...config.physics, ...s.physics },
     whisper: { ...config.whisper, ...s.whisper },
     brain: { ...config.brain, ...s.brain },
@@ -317,6 +390,23 @@ const globalMenu = (pet) => [
     },
   },
   { label: hooksInstalled() ? '断开 Claude Code 联动…' : '连接 Claude Code（安装 hooks）…', click: toggleHooks },
+  { type: 'separator' },
+  {
+    label: '记忆链',
+    submenu: [
+      { label: `她记得的你…（${memoryItems().length} 条）`, click: showMemory },
+      {
+        label: '从使用记录里慢慢了解你',
+        type: 'checkbox',
+        checked: config.memory?.enabled !== false,
+        click: (i) => {
+          config.memory = { ...config.memory, enabled: i.checked };
+          saveUserConfig({ memory: config.memory });
+        },
+      },
+      { label: '忘掉关于我的一切…', click: forgetMemory },
+    ],
+  },
   { type: 'separator' },
   { label: '打开配置文件', click: () => shell.openPath(USER_CONFIG) },
   { label: '重载配置', click: reloadConfig },

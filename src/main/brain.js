@@ -12,6 +12,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { DATA_DIR } from './config.js';
 import { spawnClaude } from './claude-cli.js';
 import { isLimitError, parseReset, fmtReset } from '../shared/limit.js';
+import { memoryPrompt } from './memory.js';
 
 /**
  * Claude Code 额度用尽后的暂停：额度是整个账号共用的，所有宠物一起停，到恢复时刻之前不再调用
@@ -140,7 +141,7 @@ export class Brain {
   system() {
     const c = this.getConfig();
     const pet = this.getPet();
-    return `${pet.persona || c.brain.persona}\n你的名字是「${pet.name}」。${timeContext()}`;
+    return `${pet.persona || c.brain.persona}\n你的名字是「${pet.name}」。${timeContext()}${memoryPrompt(c.memory)}`;
   }
 
   /**
@@ -218,8 +219,12 @@ export class Brain {
     return text || '……';
   }
 
-  /** 走本机 claude CLI：禁用工具、不落会话，设 CLAUDE_PET_INTERNAL 让自家 hook 忽略这次调用。 */
-  askCli(messages) {
+  /**
+   * 走本机 claude CLI：禁用工具、不落会话，设 CLAUDE_PET_INTERNAL 让自家 hook 忽略这次调用。
+   * @param {{role:'user'|'assistant', content:string}[]} messages 对话
+   * @param {string} [system] 系统提示词，默认是宠物人设（整理记忆时换成别的）
+   */
+  askCli(messages, system = this.system()) {
     const paused = limitPausedUntil();
     if (paused) return Promise.reject(limitError(paused));
     const c = this.getConfig();
@@ -233,7 +238,7 @@ export class Brain {
     // （npm 版 claude.cmd）里被当成命令分隔符。
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-pet-'));
     const sysFile = path.join(dir, 'system-prompt.txt');
-    fs.writeFileSync(sysFile, this.system(), 'utf8');
+    fs.writeFileSync(sysFile, system, 'utf8');
     const args = ['-p', '--system-prompt-file', sysFile, '--tools', '', '--no-session-persistence', '--output-format', 'text'];
     if (c.brain.cliModel) args.push('--model', c.brain.cliModel);
     return new Promise((resolve, reject) => {

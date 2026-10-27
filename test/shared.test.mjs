@@ -335,3 +335,45 @@ test('idleAnimDelay stays within [minSec, maxSec] and tolerates bad input', asyn
   assert.equal(idleAnimDelay({ minSec: 0, maxSec: 0 }, () => 0), 15_000, 'invalid → default');
   assert.equal(idleAnimDelay({ minSec: 1, maxSec: 1 }, () => 0), 3_000, 'floor at 3s');
 });
+
+test('memory chain: observe accumulates, digest summarizes, consolidation links and merges', async () => {
+  const m = await import('../src/shared/memory-chain.js');
+  let c = m.emptyChain();
+  const t = (h, min = 0) => new Date(2026, 9, 26, h, min);
+  c = m.observe(c, { t: 'prompt', p: 'claude-pet', s: '修一下点击穿透' }, t(21));
+  c = m.observe(c, { t: 'prompt', p: 'claude-pet', s: '打包 exe' }, t(22));
+  c = m.observe(c, { t: 'prompt', p: 'note-go', s: '加个接口' }, t(10));
+  c = m.observe(c, { t: 'chat', s: '主人说「今天好累」' }, t(22, 30));
+  c = m.observe(c, { t: 'click', s: '头' }, t(22, 31));
+  assert.equal(c.log.length, 5);
+  assert.equal(c.pending, 7, 'chat counts 3');
+  assert.equal(m.shouldConsolidate(c, t(23), { consolidateEvery: 12 }), false);
+  assert.equal(m.shouldConsolidate(c, t(23), { consolidateEvery: 6 }), true);
+
+  const d = m.activityDigest(c.log);
+  assert.match(d, /claude-pet（2次）/);
+  assert.match(d, /\[note-go\] 加个接口/);
+  assert.match(d, /今天好累/);
+  assert.match(d, /头（1次）/);
+  assert.match(m.consolidatePrompt(c, d, { name: '小橙' }), /第一次整理/);
+
+  const raw = '好的：```json\n{"items":[{"kind":"habit","text":"常在晚上写 claude-pet"},{"kind":"weird","text":"在做 note-go"},{"kind":"habit","text":"常在晚上写 claude-pet"}],"note":"原来你是夜猫子"}\n```';
+  const r1 = m.applyConsolidation(c, raw, t(23));
+  assert.deepEqual(r1.chain.items.map((i) => i.kind), ['habit', 'fact'], 'dedupe + unknown kind → fact');
+  assert.equal(r1.added.length, 2);
+  assert.equal(r1.note, '原来你是夜猫子');
+  assert.equal(r1.chain.links.length, 1);
+  assert.equal(r1.chain.log.length, 0);
+  assert.equal(r1.chain.pending, 0);
+  assert.equal(m.shouldConsolidate({ ...r1.chain, pending: 99 }, t(23, 10), { consolidateEvery: 1, minIntervalMin: 20 }), false, 'too soon');
+
+  const r2 = m.applyConsolidation(r1.chain, '{"items":[{"kind":"habit","text":"常在晚上写 claude-pet"},{"kind":"preference","text":"喜欢摸头"}],"note":""}', t(24));
+  assert.deepEqual(r2.added, ['喜欢摸头']);
+  assert.deepEqual(r2.removed, ['在做 note-go']);
+  assert.equal(r2.chain.items[0].since, r1.chain.items[0].since, 'kept item keeps its since');
+  assert.equal(r2.chain.links.length, 2);
+  assert.throws(() => m.applyConsolidation(c, 'no json here'));
+
+  assert.equal(m.memoryBlock([]), '');
+  assert.match(m.memoryBlock(r2.chain.items), /- 喜欢摸头/);
+});

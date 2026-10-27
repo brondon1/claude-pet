@@ -55,6 +55,8 @@
         <label><input id="g-roam" type="checkbox" />到处溜达</label>
         <label><input id="g-idleAnim" type="checkbox" />待机随机小动作</label>
         <label><input id="g-whisperEnabled" type="checkbox" />碎碎念（总开关）</label>
+        <label><input id="g-memEnabled" type="checkbox" />记忆链：越用越懂你</label>
+        <label><input id="g-memPrompts" type="checkbox" />记忆链记下我对 Claude 说的话</label>
       </div>
       <div class="grid3">
         <label>散步速度 px/s<input id="g-walkSpeed" type="number" min="10" max="400" step="10" /></label>
@@ -64,6 +66,8 @@
         <label>碎碎念最长间隔 秒<input id="g-maxSec" type="number" min="30" step="30" /></label>
         <label>两句之间至少隔 秒<input id="g-cooldownSec" type="number" min="0" step="10" /></label>
         <label>对话记忆轮数<input id="g-memoryRounds" type="number" min="0" max="50" /></label>
+        <label>记忆整理门槛 分<input id="g-memEvery" type="number" min="3" max="200" /></label>
+        <label>记忆最多条数<input id="g-memMax" type="number" min="5" max="100" /></label>
         <label>Claude Code 模型<input id="g-cliModel" placeholder="留空跟随默认，可填 haiku" /></label>
       </div>
       <label class="block">默认人设<textarea id="g-persona" rows="3"></textarea></label>

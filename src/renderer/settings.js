@@ -72,6 +72,10 @@ const renderGlobal = () => {
   setVal($('g-maxSec'), model.whisper.maxSec);
   setVal($('g-cooldownSec'), model.whisper.cooldownSec);
   setVal($('g-memoryRounds'), model.brain.memoryRounds);
+  setVal($('g-memEnabled'), model.memory?.enabled !== false);
+  setVal($('g-memPrompts'), model.memory?.observePrompts !== false);
+  setVal($('g-memEvery'), model.memory?.consolidateEvery);
+  setVal($('g-memMax'), model.memory?.maxItems);
   setVal($('g-cliModel'), model.brain.cliModel);
   setVal($('g-persona'), model.brain.persona);
   for (const k of ['gravity', 'restitution', 'groundFriction', 'throwPower', 'ceilingBounce', 'petCollision']) setVal($(`ph-${k}`), model.physics[k]);
@@ -91,6 +95,12 @@ const readGlobal = () => ({
     cooldownSec: getVal($('g-cooldownSec'), true),
   },
   brain: { persona: getVal($('g-persona')), memoryRounds: getVal($('g-memoryRounds'), true), cliModel: getVal($('g-cliModel')) },
+  memory: {
+    enabled: getVal($('g-memEnabled')),
+    observePrompts: getVal($('g-memPrompts')),
+    consolidateEvery: getVal($('g-memEvery'), true),
+    maxItems: getVal($('g-memMax'), true),
+  },
   physics: Object.fromEntries(
     ['gravity', 'restitution', 'groundFriction', 'throwPower', 'ceilingBounce', 'petCollision'].map((k) => [
       k,

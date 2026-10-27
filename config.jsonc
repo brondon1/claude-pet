@@ -100,6 +100,21 @@
     "recoverLines": []
   },
 
+  // ===================== 记忆链（越用越懂你） =====================
+  // 记下你在哪个项目、什么时候用 Claude Code、让它做了什么，和宠物聊了什么、点了哪里、让她做了什么；
+  // 攒够 consolidateEvery 分（一条观察 1 分、一次聊天 3 分）且离上次整理超过 minIntervalMin 分钟，就让 Claude Code
+  // 整理成最多 maxItems 条「她对你的了解」，每次整理是记忆链上的一环。记忆会带进聊天和碎碎念。
+  // 全部只存在本机 ~/.claude-pet/memory-chain.json；observePrompts=false 则不记你对 Claude 说的话（只记项目和时间）
+  "memory": {
+    "enabled": true,
+    "observePrompts": true,
+    "consolidateEvery": 12,
+    "minIntervalMin": 20,
+    "maxItems": 30,
+    "promptItems": 20,
+    "maxLog": 400
+  },
+
   // ===================== 对话（右键 →「和我聊天」） =====================
   "brain": {
     // auto：有 ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN 就走 API，否则走本机 claude CLI（用你的 Claude Code 登录，无需 key）

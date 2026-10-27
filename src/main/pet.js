@@ -457,6 +457,7 @@ export class Pet {
     this.play('think', { dur: 120_000 });
     try {
       const reply = await this.brain.chat(text);
+      this.ctx.observe({ t: 'chat', s: `主人对${this.name}说「${text.slice(0, 80)}」，${this.name}回「${reply.slice(0, 50)}」` });
       this.say(reply, Math.min(20_000, 5000 + reply.length * 180));
       this.st.queue.push('click-happy');
       return reply;
@@ -544,6 +545,7 @@ export class Pet {
     this.clickTimes = [...this.clickTimes.filter((t) => now - t < win), now];
     const n = this.clickTimes.length;
     const ctx = part ? part.context : '主人戳了你一下';
+    this.ctx.observe({ t: 'click', s: part?.label ?? '身体' });
     this.whisperNow({ context: n > 1 ? `${ctx}（已经连续碰了你 ${n} 下）` : ctx, force: true });
     this.st.queue = [part?.reaction ?? pickClick()];
     this.next();
@@ -553,6 +555,7 @@ export class Pet {
   requestAction(a) {
     const actions = this.ctx.actions();
     if (!actions[a]) return false;
+    this.ctx.observe({ t: 'play', s: actions[a].label });
     if (this.st.mode === 'auto') this.whisperNow({ context: `主人让你${actions[a].label}`, force: true });
     this.doAction(a);
     return true;
