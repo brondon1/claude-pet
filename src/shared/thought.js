@@ -62,13 +62,9 @@ export const latestThought = (tail) => {
 };
 
 /**
- * 工作状态气泡：第一行项目文件夹名，第二行最新的思考过程（没有就用状态文案）。
- * @param {{text: string, cwd?: string}} s 当前状态
- * @param {string|null} [thought] 最新思考过程
+ * 工作状态气泡：只放她说的一句话（改写好的口吻，没有就用状态文案），不带项目目录。
+ * @param {{text: string}} s 当前状态
+ * @param {string|null} [said] 她此刻说的话
  * @returns {string} 气泡文本
  */
-export const statusBubble = (s, thought) => {
-  const dir = String(s.cwd ?? '').split(/[\\/]/).filter(Boolean).pop();
-  const body = thought || s.text;
-  return dir ? `📂 ${dir}\n${body}` : body;
-};
+export const statusBubble = (s, said) => said || s.text;

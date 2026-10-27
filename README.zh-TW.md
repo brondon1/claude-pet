@@ -109,7 +109,7 @@ hook 腳本（`hooks/claude-pet-hook.mjs`）靜默執行、1.5 秒逾時、無�
 | `PostToolUseFailure` / `StopFailure` | 叉叉眼冒汗「出了點岔子，再試試」 |
 | `SessionEnd` | 「下次見~」 |
 
-- **泡泡顯示目前專案，用她的口吻說進展**：第一行是工作階段所在的專案資料夾（📂 claude-pet）；第二行是她自己說的一句話——把 Claude 此刻在做的事（它最新說的話、正在用的工具）交給 Claude Code 改寫成第一人稱的口語，比如「我要重啟一下，馬上就能開口說話啦～」，不出現指令、程式碼和英文路徑。為省額度兩次改寫至少隔 `statusVoice.minIntervalSec`（預設 20 秒），沒改寫好時顯示備用的口語文案（「在终端里敲敲打打…」「翻翻 README.md 看看～」）；`statusVoice.enabled=false` 則只用備用文案
+- **泡泡用她的口吻說進展**：泡泡裡只有她自己說的一句話（不帶專案目錄）——把 Claude 此刻在做的事（它最新說的話、正在用的工具）交給 Claude Code 改寫成第一人稱的口語，比如「我要重啟一下，馬上就能開口說話啦～」，不出現指令、程式碼和英文路徑。為省額度兩次改寫至少隔 `statusVoice.minIntervalSec`（預設 20 秒），沒改寫好時顯示備用的口語文案（「在终端里敲敲打打…」「翻翻 README.md 看看～」）；`statusVoice.enabled=false` 則只用備用文案
 - **多工作階段並行**：每個工作階段獨立記錄狀態，顯示最需要你注意的那個（等核准 > 整理 > 工作 / 思考）；10 分鐘沒動靜的工作階段自動清除
 - **文案可改**：`statusTexts` 逐項覆寫（鍵見 `src/shared/status.js` 的 `DEFAULT_TEXTS`）
 - **不會對自己起反應**：寵物自己呼叫 `claude` 聊天時帶 `CLAUDE_PET_INTERNAL=1`，hook 直接忽略

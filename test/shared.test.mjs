@@ -253,7 +253,7 @@ test('status bubble shows project folder and latest visible thinking from the tr
   assert.equal(latestThought(rows.join('\n')), 'Bash：Run unit tests', 'raw detail, only used as material for her rewrite');
   assert.equal(latestThought(rows.slice(0, 3).join('\n')), '先看看 配置文件');
   assert.equal(latestThought('garbage'), null);
-  assert.equal(statusBubble({ text: '让我想想…', cwd: 'E:\\work\\my-app' }, null), '📂 my-app\n让我想想…');
+  assert.equal(statusBubble({ text: '让我想想…', cwd: 'E:\\work\\my-app' }, null), '让我想想…', 'no project folder in the bubble');
   assert.equal(statusBubble({ text: 'x' }, '读 a.js'), '读 a.js');
   assert.equal([...oneLine('长'.repeat(100))].length, 28);
 });

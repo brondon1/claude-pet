@@ -107,7 +107,7 @@ hook 脚本（`hooks/claude-pet-hook.mjs`）静默运行、1.5 秒超时、无�
 | `PostToolUseFailure` / `StopFailure` | 叉叉眼冒汗「出了点岔子，再试试」 |
 | `SessionEnd` | 「下次见~」 |
 
-- **气泡显示当前项目，用她的口吻说进展**：第一行是会话所在的项目文件夹（📂 claude-pet）；第二行是她自己说的一句话——把 Claude 此刻在做的事（它最新说的话、正在用的工具）交给 Claude Code 改写成第一人称的口语，比如「我要重启一下，马上就能开口说话啦～」，不出现命令、代码和英文路径。为省额度两次改写至少隔 `statusVoice.minIntervalSec`（默认 20 秒），没改写好时显示兜底的口语文案（「在终端里敲敲打打…」「翻翻 README.md 看看～」）；`statusVoice.enabled=false` 则只用兜底文案
+- **气泡用她的口吻说进展**：气泡里只有她自己说的一句话（不带项目目录）——把 Claude 此刻在做的事（它最新说的话、正在用的工具）交给 Claude Code 改写成第一人称的口语，比如「我要重启一下，马上就能开口说话啦～」，不出现命令、代码和英文路径。为省额度两次改写至少隔 `statusVoice.minIntervalSec`（默认 20 秒），没改写好时显示兜底的口语文案（「在终端里敲敲打打…」「翻翻 README.md 看看～」）；`statusVoice.enabled=false` 则只用兜底文案
 - **多会话并行**：每个会话独立记状态，显示最需要你注意的那个（等批准 > 整理 > 干活 / 思考）；10 分钟没动静的会话自动清掉
 - **文案可改**：`statusTexts` 逐项覆盖（键见 `src/shared/status.js` 的 `DEFAULT_TEXTS`）
 - **不会对自己起反应**：宠物自己调用 `claude` 聊天时带 `CLAUDE_PET_INTERNAL=1`，hook 直接忽略
