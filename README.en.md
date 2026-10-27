@@ -163,7 +163,7 @@ Defaults are in [`config.jsonc`](config.jsonc) (every field is commented). **Don
 | Field | Description |
 |---|---|
 | `pets` | The pet list, each `{id, name, size, position, offsetX, offsetY, workStatusEnabled, whisperEnabled, fixed, persona}`; the first is named "小橙" by default, and notification headers show its name. Legacy top-level `name` / `size` are migrated to the first pet automatically |
-| `autoStart` | Start the pet automatically when Claude (desktop app or Claude Code) opens; on by default; toggle with right-click → "打开 Claude 时自动启动" |
+| `autoStart` | Every time the Claude desktop app or the Claude Code CLI starts (native `claude.exe` or npm install), the pet is woken up if it isn't running — even if you quit it earlier; on by default; toggle with right-click → "打开 Claude 时自动启动". Done by a watcher process that starts at login and, on Windows, subscribes to process-start events (blink-and-you-miss-it runs like `claude --version` don't count) |
 | `pets[].size` / `position` / `offsetX` / `offsetY` | Sprite height (default 200, the same as the dsh-pet maid), starting corner and offset |
 | `animationWeights` / `roam` / `walkSpeed` | Animation-chain weights, whether to roam, walking speed |
 | `physics` | Gravity, bounciness, ground friction, fling strength, pet-to-pet collisions `petCollision` |

@@ -314,3 +314,15 @@ test('limitLine fills name and reset, falls back to defaults', async () => {
   assert.equal(limitLine(['{unknown}'], {}), '{unknown}');
   assert.equal(limitLine([], { reset: '21:10' }, () => 0), DEFAULT_LIMIT_LINES.start[0].replace('{reset}', '21:10'));
 });
+
+test('isClaudeLaunch: desktop main / CLI count, Electron helpers and other node do not', async () => {
+  const { isClaudeLaunch } = await import('../src/shared/claude-proc.js');
+  const app = String.raw`"C:\Program Files\WindowsApps\Claude_3.6556.2.0_x64__pzs8sxrjxfjjc\app\Claude.exe"`;
+  assert.equal(isClaudeLaunch('Claude.exe', `${app} `), true, 'desktop main process');
+  assert.equal(isClaudeLaunch('Claude.exe', `${app} --type=renderer --user-data-dir=x`), false, 'electron helper');
+  assert.equal(isClaudeLaunch('claude.exe', String.raw`C:\Users\me\.local\bin\claude.exe`), true, 'native CLI');
+  assert.equal(isClaudeLaunch('claude.exe', String.raw`C:\x\claude-code\2.1.308\claude.exe --output-format stream-json`), true, 'desktop Code session');
+  assert.equal(isClaudeLaunch('node.exe', String.raw`"node" "C:\Users\me\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\cli.js"`), true, 'npm CLI');
+  assert.equal(isClaudeLaunch('node.exe', 'node scripts/start.mjs'), false, 'other node');
+  assert.equal(isClaudeLaunch('chrome.exe', 'claude'), false);
+});

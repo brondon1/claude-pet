@@ -161,7 +161,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 | 字段 | 说明 |
 |---|---|
 | `pets` | 宠物列表，每只 `{id, name, size, position, offsetX, offsetY, workStatusEnabled, whisperEnabled, fixed, persona}`；第一只默认叫「小橙」，通知顶栏显示它的名字。旧版顶层 `name` / `size` 会自动迁移到第一只 |
-| `autoStart` | 打开 Claude（桌面端或 Claude Code）时自动启动桌宠，默认开；右键「打开 Claude 时自动启动」可直接开关 |
+| `autoStart` | 每次打开 Claude 桌面端或 Claude Code CLI（原生 `claude.exe`、npm 装的都算）时，桌宠没在运行就自动唤醒——之前手动退出了也会；默认开，右键「打开 Claude 时自动启动」可直接开关。由开机自启的守望进程实现，Windows 上订阅进程启动事件（一闪而过的 `claude --version` 这类不算） |
 | `pets[].size` / `position` / `offsetX` / `offsetY` | 形象高度（默认 200，与 dsh-pet 女仆等高）、初始角落与偏移 |
 | `animationWeights` / `roam` / `walkSpeed` | 动画链权重、是否溜达、散步速度 |
 | `physics` | 重力、反弹系数、地面摩擦、甩出力度、宠物间碰撞 `petCollision` |

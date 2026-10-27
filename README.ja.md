@@ -163,7 +163,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 | 項目 | 説明 |
 |---|---|
 | `pets` | ペット一覧。各 `{id, name, size, position, offsetX, offsetY, workStatusEnabled, whisperEnabled, fixed, persona}`。1 匹目のデフォルト名は「小橙」で、通知のヘッダーにはその名前が表示されます。旧版のトップレベル `name` / `size` は自動で 1 匹目に移行されます |
-| `autoStart` | Claude（デスクトップアプリまたは Claude Code）を開いたときにペットを自動起動。デフォルトでオン。右クリック「打开 Claude 时自动启动」で切り替え |
+| `autoStart` | Claude デスクトップアプリや Claude Code CLI（ネイティブの `claude.exe`、npm 版どちらも）を起動するたびに、ペットが動いていなければ自動で呼び起こします（以前に手動で終了していても）。デフォルトでオン。右クリック「打开 Claude 时自动启动」で切り替え。ログイン時に起動する見張りプロセスが担当し、Windows ではプロセス起動イベントを購読します（`claude --version` のような一瞬で終わるものは対象外） |
 | `pets[].size` / `position` / `offsetX` / `offsetY` | 立ち絵の高さ（デフォルト 200、dsh-pet のメイドと同じ）、初期位置の角とオフセット |
 | `animationWeights` / `roam` / `walkSpeed` | アニメーションチェーンの重み、お散歩するか、歩く速さ |
 | `physics` | 重力、反発係数、地面の摩擦、投げる強さ、ペット同士の衝突 `petCollision` |
