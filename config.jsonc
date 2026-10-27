@@ -100,6 +100,12 @@
     "recoverLines": []
   },
 
+  // ===================== 工作状态气泡的口吻 =====================
+  // Claude 思考 / 干活时，气泡第二行不念命令和工具名，而是把它此刻在做的事交给 Claude Code 改写成她自己说的一句话
+  // （如「我在帮你翻 README 找位置呢～」）。两次改写至少隔 minIntervalSec 秒；没改写好时显示兜底的口语文案。
+  // 每次改写会用掉一点 Claude Code 额度，不想要就 enabled=false
+  "statusVoice": { "enabled": true, "minIntervalSec": 20 },
+
   // ===================== 记忆链（越用越懂你） =====================
   // 记下你在哪个项目、什么时候用 Claude Code、让它做了什么，和宠物聊了什么、点了哪里、让她做了什么；
   // 攒够 consolidateEvery 分（一条观察 1 分、一次聊天 3 分）且离上次整理超过 minIntervalMin 分钟，就让 Claude Code

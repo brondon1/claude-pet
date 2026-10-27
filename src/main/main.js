@@ -19,6 +19,7 @@ import { dueEntries, resolveAction } from '../shared/schedule.js';
 import { collide } from '../shared/collision.js';
 import { recordObservation, maybeConsolidate, memoryItems, memoryLinks, forgetAll, CHAIN_FILE } from './memory.js';
 import { KINDS } from '../shared/memory-chain.js';
+import { createVoice } from '../shared/voice.js';
 import { DEFAULT_LIMIT_LINES, limitLine, fmtReset } from '../shared/limit.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -71,7 +72,14 @@ const ctx = {
   promptLogin,
   globalMenu: (pet) => globalMenu(pet),
   observe: (ev) => observe(ev),
+  voice: (raw, meta) => voice.line(raw, meta),
 };
+
+// 工作状态气泡用她的口吻：所有宠物共用一个改写器，限频调用 Claude Code（src/shared/voice.js）
+const voice = createVoice({
+  ask: (prompt) => primary().brain.askCli([{ role: 'user', content: prompt }]),
+  minIntervalMs: (config.statusVoice?.minIntervalSec ?? 20) * 1000,
+});
 
 // ===================== 记忆链 =====================
 // 观察主人怎么用 Claude Code、和宠物怎么相处，攒够了就让 Claude Code 整理成「她对主人的了解」（src/main/memory.js）

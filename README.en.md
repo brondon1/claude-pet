@@ -101,7 +101,7 @@ The hook script (`hooks/claude-pet-hook.mjs`) runs silently with a 1.5-second ti
 |---|---|
 | `SessionStart` | Waves: "New session, let's go!" |
 | `UserPromptSubmit` | Chin in hand, thinking, the sunflower in her hair spinning: "Let me think…" |
-| `PreToolUse` | Types on her laptop; the bubble says what's happening: running `npm test` / editing `main.js` / reading `README.md` / searching for `TODO` / searching the web / sending out a squad… |
+| `PreToolUse` | Types on her laptop; the bubble says in her own words what she's helping with, e.g. "I'm flipping through the README for you~" (no commands or tool names, see below) |
 | `PostToolUse` | Mulling over the result… |
 | `Notification` | Raises her hand with a question mark: "I need your approval!" / "Waiting for your reply~", plus a system notification |
 | `PreCompact` | Organizing memory |
@@ -109,7 +109,7 @@ The hook script (`hooks/claude-pet-hook.mjs`) runs silently with a 1.5-second ti
 | `PostToolUseFailure` / `StopFailure` | X-shaped eyes and a sweat drop: "Something went wrong, let's try again" |
 | `SessionEnd` | "See you next time~" |
 
-- **The bubble shows the current project and what Claude is thinking**: the first line is the session's project folder (📂 claude-pet); the second line shows, live, Claude's latest sentence or the step it's on (which file it's reading, which command it's running), refreshed from the session transcript every 1.5 seconds. Raw thinking text isn't written to the transcript, so what you see is the visible part
+- **The bubble shows the current project and tells you the progress in her own voice**: the first line is the session's project folder (📂 claude-pet); the second is a line she says herself — what Claude is doing right now (its latest message or the tool it's using) is handed to Claude Code and rewritten as one casual first-person line, e.g. "我要重启一下，马上就能开口说话啦～", with no commands, code or English paths. To save quota there are at least `statusVoice.minIntervalSec` seconds (default 20) between rewrites; until one is ready a casual fallback phrase is shown ("在终端里敲敲打打…", "翻翻 README.md 看看～"); `statusVoice.enabled=false` uses only the fallbacks
 - **Parallel sessions**: each session keeps its own state, and the one that most needs your attention is shown (waiting for approval > organizing > working / thinking); sessions with no activity for 10 minutes are cleared automatically
 - **Customizable text**: override individual entries with `statusTexts` (keys are in `DEFAULT_TEXTS` in `src/shared/status.js`)
 - **Doesn't react to itself**: when the pet calls `claude` itself it sets `CLAUDE_PET_INTERNAL=1`, and the hook ignores it
@@ -172,6 +172,7 @@ Defaults are in [`config.jsonc`](config.jsonc) (every field is commented). **Don
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `statusTexts` | Work-status following and notifications |
 | `whisper` / `brain` | Muttering and chat |
 | `schedule` | Scheduled actions (time, action, context, weekdays) |
+| `statusVoice` | Voice of the work-status bubble: `enabled`, `minIntervalSec` (minimum gap between rewrites, default 20 s) |
 | `memory` | Memory chain: `enabled`, `observePrompts` (whether to record what you ask Claude), `consolidateEvery` (points needed before a consolidation pass; an observation is 1, a chat 3; default 12), `minIntervalMin`, `maxItems`, … |
 | `limit` | Action and lines when the quota runs out / comes back (`{name}`, `{reset}` placeholders) |
 

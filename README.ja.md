@@ -101,7 +101,7 @@ hook スクリプト（`hooks/claude-pet-hook.mjs`）は静かに動作し、1.5
 |---|---|
 | `SessionStart` | 手を振って：「新しいセッションだ、いくよ！」 |
 | `UserPromptSubmit` | ほおづえで考え込み、髪のひまわりが回る：「ちょっと考えさせて…」 |
-| `PreToolUse` | パソコンを叩き、吹き出しに作業内容：`npm test` を実行／`main.js` を編集／`README.md` を読む／`TODO` を検索／ウェブで調べもの／小隊を派遣… |
+| `PreToolUse` | パソコンを叩き、吹き出しで何を手伝っているかを彼女自身の言葉で言います（例「README をめくって場所を探してるよ～」。コマンドやツール名は読み上げません。下記参照） |
 | `PostToolUse` | 結果をじっくり検討中… |
 | `Notification` | 手を挙げて「？」：「承認してほしいな！」／「返事を待ってるよ~」、さらにシステム通知 |
 | `PreCompact` | 記憶の整理 |
@@ -109,7 +109,7 @@ hook スクリプト（`hooks/claude-pet-hook.mjs`）は静かに動作し、1.5
 | `PostToolUseFailure` / `StopFailure` | バツ目で冷や汗「ちょっと失敗、もう一回」 |
 | `SessionEnd` | 「またね~」 |
 
-- **吹き出しに現在のプロジェクトと思考の流れを表示**：1 行目はセッションのプロジェクトフォルダー（📂 claude-pet）、2 行目は Claude の最新の一言や今やっている作業（どのファイルを読んでいるか、どのコマンドを実行しているか）をリアルタイム表示し、1.5 秒ごとにセッション記録から更新します。生の thinking 本文はセッション記録に書かれないため、表示されるのは見える部分です
+- **吹き出しに現在のプロジェクトと、彼女の言葉で進み具合を表示**：1 行目はセッションのプロジェクトフォルダー（📂 claude-pet）。2 行目は彼女自身のひと言で、Claude がいましていること（最新の発言や使っているツール）を Claude Code に一人称の話し言葉へ言い換えさせたものです（例「我要重启一下，马上就能开口说话啦～」）。コマンド・コード・英語のパスは出ません。使用量節約のため言い換えは最低 `statusVoice.minIntervalSec` 秒（デフォルト 20 秒）空け、準備できるまでは代わりの話し言葉（「在终端里敲敲打打…」「翻翻 README.md 看看～」）を表示します。`statusVoice.enabled=false` なら代わりの言葉だけを使います
 - **複数セッションの並行**：セッションごとに状態を持ち、いちばん注意が必要なものを表示します（承認待ち > 整理 > 作業／考え中）。10 分間動きのないセッションは自動で消えます
 - **文言は変更可能**：`statusTexts` で項目ごとに上書き（キーは `src/shared/status.js` の `DEFAULT_TEXTS`）
 - **自分には反応しない**：ペット自身が `claude` を呼ぶときは `CLAUDE_PET_INTERNAL=1` を付けるので、hook は無視します
@@ -172,6 +172,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `statusTexts` | 作業状態への連動と通知 |
 | `whisper` / `brain` | ひとりごとと会話 |
 | `schedule` | 定時アクション（時刻、動作、状況、曜日） |
+| `statusVoice` | 作業状態の吹き出しの口調：`enabled`、`minIntervalSec`（言い換えの最短間隔、デフォルト 20 秒） |
 | `memory` | 記憶チェーン：`enabled`、`observePrompts`（Claude への依頼内容を記録するか）、`consolidateEvery`（整理に必要なポイント。観察 1、会話 3、デフォルト 12）、`minIntervalMin`、`maxItems` など |
 | `limit` | 使用量が切れたとき／回復したときの動作とセリフ（`{name}`、`{reset}` のプレースホルダー） |
 

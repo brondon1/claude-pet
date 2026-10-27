@@ -99,7 +99,7 @@ hook 脚本（`hooks/claude-pet-hook.mjs`）静默运行、1.5 秒超时、无�
 |---|---|
 | `SessionStart` | 挥手：「新会话开始啦，冲！」 |
 | `UserPromptSubmit` | 托腮思考，发间向日葵转起来：「让我想想…」 |
-| `PreToolUse` | 敲电脑，气泡写着在干什么：跑命令：`npm test` / 改 `main.js` / 读 `README.md` / 翻找 `TODO` / 上网查资料 / 派出小分队… |
+| `PreToolUse` | 敲电脑，气泡里用她自己的话说在帮你干什么，比如「我在帮你翻 README 找位置呢～」（不念命令和工具名，见下） |
 | `PostToolUse` | 琢磨一下结果… |
 | `Notification` | 举手冒问号：「需要你批准一下！」/「等你回复~」，并弹系统通知 |
 | `PreCompact` | 整理记忆 |
@@ -107,7 +107,7 @@ hook 脚本（`hooks/claude-pet-hook.mjs`）静默运行、1.5 秒超时、无�
 | `PostToolUseFailure` / `StopFailure` | 叉叉眼冒汗「出了点岔子，再试试」 |
 | `SessionEnd` | 「下次见~」 |
 
-- **气泡显示当前项目和思考过程**：第一行是会话所在的项目文件夹（📂 claude-pet），第二行实时显示 Claude 最新说的一句话或正在做的那一步（读哪个文件、跑什么命令），每 1.5 秒从会话记录刷新。原始 thinking 正文不会写进会话记录，所以显示的是可见部分
+- **气泡显示当前项目，用她的口吻说进展**：第一行是会话所在的项目文件夹（📂 claude-pet）；第二行是她自己说的一句话——把 Claude 此刻在做的事（它最新说的话、正在用的工具）交给 Claude Code 改写成第一人称的口语，比如「我要重启一下，马上就能开口说话啦～」，不出现命令、代码和英文路径。为省额度两次改写至少隔 `statusVoice.minIntervalSec`（默认 20 秒），没改写好时显示兜底的口语文案（「在终端里敲敲打打…」「翻翻 README.md 看看～」）；`statusVoice.enabled=false` 则只用兜底文案
 - **多会话并行**：每个会话独立记状态，显示最需要你注意的那个（等批准 > 整理 > 干活 / 思考）；10 分钟没动静的会话自动清掉
 - **文案可改**：`statusTexts` 逐项覆盖（键见 `src/shared/status.js` 的 `DEFAULT_TEXTS`）
 - **不会对自己起反应**：宠物自己调用 `claude` 聊天时带 `CLAUDE_PET_INTERNAL=1`，hook 直接忽略
@@ -170,6 +170,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `statusTexts` | 工作状态跟随与通知 |
 | `whisper` / `brain` | 碎碎念与对话 |
 | `schedule` | 定时动作（时刻、动作、情境、星期几） |
+| `statusVoice` | 工作状态气泡的口吻：`enabled`、`minIntervalSec`（两次改写的最短间隔，默认 20 秒） |
 | `memory` | 记忆链：`enabled`、`observePrompts`（是否记你对 Claude 说的话）、`consolidateEvery`（攒够多少分整理一次，观察 1 分、聊天 3 分，默认 12）、`minIntervalMin`、`maxItems` 等 |
 | `limit` | 额度用完 / 恢复时做的动作和说的话（`{name}`、`{reset}` 占位） |
 

@@ -84,9 +84,9 @@ test('menu groups only reference known actions', () => {
 });
 
 test('tool text summarises common tools', () => {
-  assert.equal(toolText('Read', { file_path: 'C:\\x\\foo.ts' }), '读 foo.ts');
-  assert.match(toolText('Bash', { command: 'npm test' }), /npm test/);
-  assert.match(toolText('mcp__github__create_pr', {}), /github/);
+  assert.equal(toolText('Read', { file_path: 'C:\\x\\foo.ts' }), '翻翻 foo.ts 看看～');
+  assert.doesNotMatch(toolText('Bash', { command: 'npm test', description: 'Run tests' }), /npm|Run/, 'commands are never read out');
+  assert.equal(toolText('mcp__github__create_pr', {}), '埋头干活中…');
 });
 
 test('session tracker: full turn lifecycle', () => {
@@ -94,7 +94,7 @@ test('session tracker: full turn lifecycle', () => {
   t.apply({ hook_event_name: 'UserPromptSubmit', session_id: 'a' }, 0);
   assert.equal(t.current(0).status, 'thinking');
   t.apply({ hook_event_name: 'PreToolUse', session_id: 'a', tool_name: 'Edit', tool_input: { file_path: '/p/a.js' } }, 10);
-  assert.deepEqual(t.current(10), { status: 'working', text: '改 a.js', sessionId: 'a', cwd: undefined, transcript: undefined });
+  assert.deepEqual(t.current(10), { status: 'working', text: '帮你改 a.js 呢', sessionId: 'a', cwd: undefined, transcript: undefined });
   const n = t.apply({ hook_event_name: 'Notification', session_id: 'a', message: 'Claude needs your permission to use Bash' }, 20);
   assert.equal(t.current(20).status, 'waiting');
   assert.ok(n.notify);
@@ -250,7 +250,7 @@ test('status bubble shows project folder and latest visible thinking from the tr
     line({ type: 'assistant', message: { content: [{ type: 'thinking', thinking: '' }, { type: 'tool_use', name: 'Bash', input: { description: 'Run unit tests', command: 'npm test' } }] } }),
     line({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'mcp__ccd_turn__update_plan', input: {} }] } }),
   ];
-  assert.equal(latestThought(rows.join('\n')), '跑命令：Run unit tests');
+  assert.equal(latestThought(rows.join('\n')), 'Bash：Run unit tests', 'raw detail, only used as material for her rewrite');
   assert.equal(latestThought(rows.slice(0, 3).join('\n')), '先看看 配置文件');
   assert.equal(latestThought('garbage'), null);
   assert.equal(statusBubble({ text: '让我想想…', cwd: 'E:\\work\\my-app' }, null), '📂 my-app\n让我想想…');
@@ -376,4 +376,28 @@ test('memory chain: observe accumulates, digest summarizes, consolidation links 
 
   assert.equal(m.memoryBlock([]), '');
   assert.match(m.memoryBlock(r2.chain.items), /- 喜欢摸头/);
+});
+
+test('status voice: rewrites in her words, rate-limited, one call at a time', async () => {
+  const { createVoice } = await import('../src/shared/voice.js');
+  let t = 0;
+  const asked = [];
+  const v = createVoice({ ask: async (p) => (asked.push(p), '「我在帮你跑测试呢～」\n多余'), minIntervalMs: 20_000, maxAgeMs: 90_000, now: () => t });
+  assert.equal(v.line('Bash：Run unit tests', { project: 'claude-pet' }), null, 'nothing yet, asks in background');
+  assert.equal(v.line('Bash：Run unit tests'), null, 'no second call while in flight');
+  await new Promise((r) => setTimeout(r));
+  assert.equal(asked.length, 1);
+  assert.match(asked[0], /claude-pet/);
+  assert.match(asked[0], /Run unit tests/);
+  assert.equal(v.line('Bash：Run unit tests'), '我在帮你跑测试呢～', 'quotes and extra lines stripped');
+  t = 5_000;
+  assert.equal(v.line('Read：README.md'), '我在帮你跑测试呢～', 'new step too soon: keep the last line');
+  assert.equal(asked.length, 1);
+  t = 25_000;
+  v.line('Read：README.md');
+  assert.equal(asked.length, 2, 'asks again after the interval');
+  await new Promise((r) => setTimeout(r));
+  t = 200_000;
+  assert.equal(v.line('Grep：TODO'), null, 'too old to keep showing');
+  assert.equal(v.line(''), null);
 });

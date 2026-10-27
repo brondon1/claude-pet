@@ -4,7 +4,16 @@
  * 纯函数，主进程与测试共用。
  * @module claude-pet/src/shared/thought
  */
-import { toolText } from './status.js';
+
+/**
+ * 工具调用的原始描述（给「她的口吻」改写当素材，不直接显示）：工具名 + 说明 / 文件 / 搜索词。
+ * @param {string} name 工具名
+ * @param {Record<string, any>} input 参数
+ */
+export const toolRaw = (name, input = {}) => {
+  const what = input.description || input.file_path || input.notebook_path || input.pattern || input.query || input.url || input.command;
+  return what ? `${name}：${what}` : name;
+};
 
 /** 只是会话 UI 的内部工具（任务列表、收尾卡片等），不算「在干什么」。 */
 const IGNORED_TOOL = /^(mcp__ccd_|TodoWrite$|ToolSearch$)/;
@@ -46,7 +55,7 @@ export const latestThought = (tail) => {
       const c = content[j];
       if (c.type === 'text' && c.text?.trim()) return oneLine(c.text);
       if (c.type === 'thinking' && c.thinking?.trim()) return oneLine(c.thinking);
-      if (c.type === 'tool_use' && !IGNORED_TOOL.test(c.name ?? '')) return oneLine(toolText(c.name, c.input ?? {}));
+      if (c.type === 'tool_use' && !IGNORED_TOOL.test(c.name ?? '')) return oneLine(toolRaw(c.name, c.input ?? {}), 60);
     }
   }
   return null;

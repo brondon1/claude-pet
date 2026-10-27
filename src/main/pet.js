@@ -265,7 +265,13 @@ export class Pet {
   }
 
   statusBubble(s) {
-    return statusBubble(s, readThought(s.transcript));
+    // 思考 / 干活时，把 Claude 此刻在做的事交给 Claude Code 改写成她自己的话；还没改写好就用兜底文案（也是她的口吻）
+    if (s.status !== 'thinking' && s.status !== 'working') return statusBubble(s);
+    const voice = this.ctx.config().statusVoice;
+    const raw = readThought(s.transcript) || s.text;
+    const project = String(s.cwd ?? '').split(/[\\/]/).filter(Boolean).pop();
+    const said = voice?.enabled === false ? null : this.ctx.voice(raw, { project, status: s.status === 'thinking' ? '思考中' : '干活中' });
+    return statusBubble(s, said);
   }
 
   /** 当前动作播完 / 被打断后选下一个。 */

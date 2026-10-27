@@ -101,7 +101,7 @@ hook 腳本（`hooks/claude-pet-hook.mjs`）靜默執行、1.5 秒逾時、無�
 |---|---|
 | `SessionStart` | 揮手：「新工作階段開始啦，衝！」 |
 | `UserPromptSubmit` | 托腮思考，髮間向日葵轉起來：「讓我想想…」 |
-| `PreToolUse` | 敲電腦，泡泡寫著在做什麼：跑指令：`npm test` / 改 `main.js` / 讀 `README.md` / 翻找 `TODO` / 上網查資料 / 派出小分隊… |
+| `PreToolUse` | 敲電腦，泡泡裡用她自己的話說在幫你做什麼，比如「我在幫你翻 README 找位置呢～」（不念指令和工具名，見下） |
 | `PostToolUse` | 琢磨一下結果… |
 | `Notification` | 舉手冒問號：「需要你核准一下！」/「等你回覆~」，並跳出系統通知 |
 | `PreCompact` | 整理記憶 |
@@ -109,7 +109,7 @@ hook 腳本（`hooks/claude-pet-hook.mjs`）靜默執行、1.5 秒逾時、無�
 | `PostToolUseFailure` / `StopFailure` | 叉叉眼冒汗「出了點岔子，再試試」 |
 | `SessionEnd` | 「下次見~」 |
 
-- **泡泡顯示目前專案和思考過程**：第一行是工作階段所在的專案資料夾（📂 claude-pet），第二行即時顯示 Claude 最新說的一句話或正在做的那一步（讀哪個檔案、跑什麼指令），每 1.5 秒從工作階段紀錄重新整理。原始 thinking 內文不會寫進工作階段紀錄，所以顯示的是可見部分
+- **泡泡顯示目前專案，用她的口吻說進展**：第一行是工作階段所在的專案資料夾（📂 claude-pet）；第二行是她自己說的一句話——把 Claude 此刻在做的事（它最新說的話、正在用的工具）交給 Claude Code 改寫成第一人稱的口語，比如「我要重啟一下，馬上就能開口說話啦～」，不出現指令、程式碼和英文路徑。為省額度兩次改寫至少隔 `statusVoice.minIntervalSec`（預設 20 秒），沒改寫好時顯示備用的口語文案（「在终端里敲敲打打…」「翻翻 README.md 看看～」）；`statusVoice.enabled=false` 則只用備用文案
 - **多工作階段並行**：每個工作階段獨立記錄狀態，顯示最需要你注意的那個（等核准 > 整理 > 工作 / 思考）；10 分鐘沒動靜的工作階段自動清除
 - **文案可改**：`statusTexts` 逐項覆寫（鍵見 `src/shared/status.js` 的 `DEFAULT_TEXTS`）
 - **不會對自己起反應**：寵物自己呼叫 `claude` 聊天時帶 `CLAUDE_PET_INTERNAL=1`，hook 直接忽略
@@ -172,6 +172,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `statusTexts` | 工作狀態跟隨與通知 |
 | `whisper` / `brain` | 碎碎念與對話 |
 | `schedule` | 定時動作（時刻、動作、情境、星期幾） |
+| `statusVoice` | 工作狀態泡泡的口吻：`enabled`、`minIntervalSec`（兩次改寫的最短間隔，預設 20 秒） |
 | `memory` | 記憶鏈：`enabled`、`observePrompts`（是否記你對 Claude 說的話）、`consolidateEvery`（攢夠多少分整理一次，觀察 1 分、聊天 3 分，預設 12）、`minIntervalMin`、`maxItems` 等 |
 | `limit` | 額度用完 / 恢復時做的動作和說的話（`{name}`、`{reset}` 佔位） |
 

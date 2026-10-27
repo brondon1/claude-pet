@@ -38,31 +38,31 @@ const base = (p) => String(p ?? '').split(/[\\/]/).pop();
  * @returns {string} 文案
  */
 export const toolText = (tool, input = {}) => {
+  // 用她的口吻说，不把命令、搜索词这些原样念出来（文件名可以说，像在聊天）
   switch (tool) {
     case 'Bash':
     case 'PowerShell':
-      return `跑命令：${short(input.description || input.command)}`;
+      return '在终端里敲敲打打…';
     case 'Edit':
     case 'MultiEdit':
     case 'Write':
     case 'NotebookEdit':
-      return `改 ${short(base(input.file_path || input.notebook_path))}`;
+      return `帮你改 ${short(base(input.file_path || input.notebook_path), 18)} 呢`;
     case 'Read':
-      return `读 ${short(base(input.file_path))}`;
+      return `翻翻 ${short(base(input.file_path), 18)} 看看～`;
     case 'Grep':
     case 'Glob':
-      return `翻找 ${short(input.pattern, 16)}`;
+      return '到处找找线索…';
     case 'WebFetch':
     case 'WebSearch':
-      return '上网查资料～';
+      return '上网查查资料～';
     case 'Task':
     case 'Agent':
-      return `派出小分队：${short(input.description, 14)}`;
+      return '派小分队去帮忙啦';
     case 'TodoWrite':
-      return '排一下计划';
+      return '先排一下计划';
     default:
-      if (tool?.startsWith('mcp__')) return `调用 ${short(tool.split('__')[1], 14)}`;
-      return `用 ${short(tool, 16)}`;
+      return '埋头干活中…';
   }
 };
 
