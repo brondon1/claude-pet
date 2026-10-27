@@ -1,6 +1,10 @@
 # claude-pet 🧡
 
 <p align="center">
+  <b>简体中文</b> | <a href="README.zh-TW.md">繁體中文</a> | <a href="README.en.md">English</a> | <a href="README.ja.md">日本語</a>
+</p>
+
+<p align="center">
   <img alt="platform" src="https://img.shields.io/badge/platform-Claude%20Code-D97757">
   <img alt="runtime" src="https://img.shields.io/badge/runtime-Electron-47848F">
   <img alt="node" src="https://img.shields.io/badge/node-%E2%89%A520-339933">
