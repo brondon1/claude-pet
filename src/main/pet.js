@@ -9,7 +9,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { listWebm } from './config.js';
-import { Brain, clearMemory } from './brain.js';
+import { Brain, clearMemory, limitPausedUntil } from './brain.js';
+import { fmtReset } from '../shared/limit.js';
 import { ACTIONS, MENU_GROUPS, VIDEO_GROUP, pickNext, pickClick } from '../shared/behavior.js';
 import { STATUS_ANIM } from '../shared/status.js';
 import { springStep, trimTrail, estimateReleaseVelocity, throwStep, landingSquash } from '../shared/physics.js';
@@ -400,6 +401,14 @@ export class Pet {
 
   // ===================== 对话 / 碎碎念 =====================
   async chat(text) {
+    const paused = limitPausedUntil();
+    if (paused) {
+      // 额度暂停中：不打断她（多半正在打瞌睡），直接告诉你什么时候恢复
+      const e = new Error(`Claude Code 额度用完啦，${fmtReset(paused)} 恢复`);
+      e.code = 'LIMIT';
+      this.say(`${e.message}~`, 8000);
+      throw e;
+    }
     this.chatting = true;
     this.say('嗯…让我想想', 0);
     this.play('think', { dur: 120_000 });
@@ -416,7 +425,8 @@ export class Pet {
       throw e;
     } finally {
       this.chatting = false;
-      this.st.actionEnd = 0;
+      // 只结束「思考」动画；期间被换成别的动作（如额度用完打瞌睡）就让它播完
+      if (this.st.action === 'think') this.st.actionEnd = 0;
     }
   }
 
