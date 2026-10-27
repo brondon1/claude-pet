@@ -7,7 +7,7 @@ const IN = ['init', 'play', 'bubble', 'squash', 'chat-open'];
 
 contextBridge.exposeInMainWorld('pet', {
   on: (ch, fn) => IN.includes(ch) && ipcRenderer.on(ch, (_e, p) => fn(p)),
-  hover: (over) => ipcRenderer.send('hover', over),
+  hitArea: (info) => ipcRenderer.send('hit-area', info),
   dragStart: () => ipcRenderer.send('drag-start'),
   dragEnd: () => ipcRenderer.send('drag-end'),
   click: (info) => ipcRenderer.send('click', info),

@@ -184,6 +184,8 @@ export class Pet {
     });
     this.win.setAlwaysOnTop(true, 'screen-saver');
     this.win.setIgnoreMouseEvents(true, { forward: true });
+    this.ignoring = true;
+    this.hit = null;
     this.win.loadFile(path.join(here, '..', 'renderer', 'index.html'));
     this.win.once('ready-to-show', () => {
       this.placeAtCorner();
@@ -330,6 +332,31 @@ export class Pet {
     this.st.vx = vx;
     this.st.vy = vy;
     this.play('fall');
+  }
+
+  /** 渲染端报来的可点区域（窗口内坐标）；all = 整窗接收鼠标（拖拽中 / 对话框开着）。 */
+  setHitArea(info) {
+    this.hit = info;
+  }
+
+  /**
+   * 每帧按光标位置决定窗口是否穿透：光标在身体 / 气泡 / 对话框上就接收鼠标，否则点穿到下面。
+   * 在主进程做而不是等渲染端的 mousemove：她自己移动到静止的光标下也能立刻点到。
+   */
+  updatePassthrough() {
+    if (!this.alive()) return;
+    let ignore = true;
+    if (this.st.mode === 'drag' || this.hit?.all) ignore = false;
+    else if (this.hit?.rects?.length) {
+      const c = screen.getCursorScreenPoint();
+      const b = this.win.getBounds();
+      const x = c.x - b.x;
+      const y = c.y - b.y;
+      ignore = !this.hit.rects.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+    }
+    if (ignore === this.ignoring) return;
+    this.ignoring = ignore;
+    this.win.setIgnoreMouseEvents(ignore, { forward: true });
   }
 
   /** 每帧推进。 */
@@ -572,6 +599,9 @@ export class Pet {
       facing: st.facing,
       bounds: { x: Math.round(st.x), y: Math.round(st.y), width: this.W, height: this.H },
       bubble: st.bubble,
+      // 当前是否鼠标穿透（光标不在她身上时为 true），以及身体的可点区域（窗口内坐标）
+      passthrough: this.ignoring,
+      hitArea: this.hit?.rects?.[0] ?? null,
     };
   }
 }

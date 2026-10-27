@@ -147,23 +147,31 @@ window.pet.on('chat-open', (o = {}) => {
   chat.classList.add('show');
   chatInput.focus();
   chatInput.select();
-  setHover(true);
 });
 
 // ===================== 鼠标穿透：只有身体 / 气泡 / 对话框接收鼠标 =====================
-let hovering = false;
+// 这里只把可点区域（窗口内坐标）报给主进程，由主进程每帧拿光标位置比对、切换穿透。
+// 不能靠 mousemove 切：她走动 / 下落时光标不动就收不到事件，刚移上来立刻点也会因为 IPC 来不及而点穿到桌面。
 let pointerDown = false;
-const setHover = (over) => {
-  if (over === hovering) return;
-  hovering = over;
-  window.pet.hover(over);
+let lastHit = '';
+const reportHit = () => {
+  const rects = [hit, bubble.classList.contains('show') && bubble, chat.classList.contains('show') && chat]
+    .filter(Boolean)
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+    })
+    .filter((r) => r.w > 0 && r.h > 0);
+  // 拖拽中、对话框开着时整窗接收鼠标（点窗口里别处靠 blur 关闭对话框）
+  const info = { rects, all: pointerDown || chat.classList.contains('show') };
+  const key = JSON.stringify(info);
+  if (key !== lastHit) {
+    lastHit = key;
+    window.pet.hitArea(info);
+  }
+  requestAnimationFrame(reportHit);
 };
-document.addEventListener('mousemove', (e) => {
-  if (pointerDown) return;
-  const el = document.elementFromPoint(e.clientX, e.clientY);
-  setHover(!!el?.closest('#hit, #bubble.show, #chat.show'));
-});
-document.addEventListener('mouseleave', () => !pointerDown && !chat.classList.contains('show') && setHover(false));
+requestAnimationFrame(reportHit);
 
 // ===================== 点击 / 拖拽 / 右键 =====================
 const DRAG_THRESHOLD = 4;

@@ -212,7 +212,10 @@ const collidePets = () => {
 
 const tick = () => {
   const now = Date.now();
-  for (const pet of pets) pet.tick(now);
+  for (const pet of pets) {
+    pet.tick(now);
+    pet.updatePassthrough();
+  }
   collidePets();
 };
 
@@ -326,7 +329,7 @@ ipcMain.on('video-meta', (_e, meta) => {
   videoMeta = meta || {};
   actions = withVideoActions(videoMeta);
 });
-ipcMain.on('hover', (e, over) => BrowserWindow.fromWebContents(e.sender)?.setIgnoreMouseEvents(!over, { forward: true }));
+ipcMain.on('hit-area', (e, info) => petOf(e)?.setHitArea(info));
 ipcMain.on('drag-start', (e) => petOf(e)?.dragStart());
 ipcMain.on('drag-end', (e) => petOf(e)?.dragEnd());
 ipcMain.on('click', (e, info) => petOf(e)?.click(info));
