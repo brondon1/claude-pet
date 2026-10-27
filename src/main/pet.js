@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { listWebm } from './config.js';
 import { Brain, clearMemory, limitPausedUntil } from './brain.js';
 import { fmtReset } from '../shared/limit.js';
-import { ACTIONS, MENU_GROUPS, VIDEO_GROUP, pickNext, pickClick } from '../shared/behavior.js';
+import { ACTIONS, MENU_GROUPS, VIDEO_GROUP, pickNext, pickClick, idleAnimDelay } from '../shared/behavior.js';
 import { STATUS_ANIM } from '../shared/status.js';
 import { springStep, trimTrail, estimateReleaseVelocity, throwStep, landingSquash } from '../shared/physics.js';
 import { throwBounds } from '../shared/displays.js';
@@ -283,8 +283,24 @@ export class Pet {
     }
     const cfg = this.ctx.config();
     const fixed = this.def.fixed;
-    const weights = fixed ? { ...cfg.animationWeights, move: 0, turn: 0 } : cfg.animationWeights;
+    let weights = fixed ? { ...cfg.animationWeights, move: 0, turn: 0 } : cfg.animationWeights;
+    // 待机随机动画：开着时小动作只由这个计时器触发（频率 = idleAnimation 的 minSec~maxSec），动画链里只剩待机 / 散步 / 转身
+    const ia = cfg.idleAnimation;
+    if (ia?.enabled) {
+      const now = Date.now();
+      st.nextFunAt ||= now + idleAnimDelay(ia);
+      if (now >= st.nextFunAt) {
+        const actions = this.ctx.actions();
+        const fun = pickNext({ prev: st.action, weights: { fun: 1 }, canWalk: false, actions });
+        // 从这段小动作播完算起，间隔就是两段小动作之间实际的空档
+        st.nextFunAt = now + (actions[fun]?.dur ?? 0) + idleAnimDelay(ia);
+        return this.play(fun);
+      }
+      weights = { ...weights, fun: 0 };
+    }
     const a = pickNext({ prev: st.action, weights, canWalk: cfg.roam && !fixed, actions: this.ctx.actions() });
+    // 待机快到点时缩短这段待机，让小动作准时出来
+    if (a === 'idle' && ia?.enabled) return this.play('idle', { dur: Math.min(this.ctx.actions().idle.dur, Math.max(1000, st.nextFunAt - Date.now())) });
     if (a === 'turn') st.facing = -st.facing;
     if (a === 'walk') {
       // 前方空间不足就先转身

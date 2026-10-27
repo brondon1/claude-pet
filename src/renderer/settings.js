@@ -64,6 +64,9 @@ const renderGlobal = () => {
   setVal($('g-autoStart'), model.autoStart);
   setVal($('g-roam'), model.roam);
   setVal($('g-walkSpeed'), model.walkSpeed);
+  setVal($('g-idleAnim'), model.idleAnimation?.enabled);
+  setVal($('g-idleMin'), model.idleAnimation?.minSec);
+  setVal($('g-idleMax'), model.idleAnimation?.maxSec);
   setVal($('g-whisperEnabled'), model.whisper.enabled);
   setVal($('g-minSec'), model.whisper.minSec);
   setVal($('g-maxSec'), model.whisper.maxSec);
@@ -80,6 +83,7 @@ const readGlobal = () => ({
   autoStart: getVal($('g-autoStart')),
   roam: getVal($('g-roam')),
   walkSpeed: getVal($('g-walkSpeed'), true),
+  idleAnimation: { enabled: getVal($('g-idleAnim')), minSec: getVal($('g-idleMin'), true), maxSec: getVal($('g-idleMax'), true) },
   whisper: {
     enabled: getVal($('g-whisperEnabled')),
     minSec: getVal($('g-minSec'), true),

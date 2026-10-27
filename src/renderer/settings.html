@@ -53,10 +53,13 @@
         <label><input id="g-notificationsEnabled" type="checkbox" />系统通知</label>
         <label><input id="g-autoStart" type="checkbox" />打开 Claude 时自动启动</label>
         <label><input id="g-roam" type="checkbox" />到处溜达</label>
+        <label><input id="g-idleAnim" type="checkbox" />待机随机小动作</label>
         <label><input id="g-whisperEnabled" type="checkbox" />碎碎念（总开关）</label>
       </div>
       <div class="grid3">
         <label>散步速度 px/s<input id="g-walkSpeed" type="number" min="10" max="400" step="10" /></label>
+        <label>小动作最短间隔 秒<input id="g-idleMin" type="number" min="3" step="5" /></label>
+        <label>小动作最长间隔 秒<input id="g-idleMax" type="number" min="3" step="5" /></label>
         <label>碎碎念最短间隔 秒<input id="g-minSec" type="number" min="30" step="30" /></label>
         <label>碎碎念最长间隔 秒<input id="g-maxSec" type="number" min="30" step="30" /></label>
         <label>两句之间至少隔 秒<input id="g-cooldownSec" type="number" min="0" step="10" /></label>

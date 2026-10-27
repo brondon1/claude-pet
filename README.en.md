@@ -166,6 +166,7 @@ Defaults are in [`config.jsonc`](config.jsonc) (every field is commented). **Don
 | `autoStart` | Every time the Claude desktop app or the Claude Code CLI starts (native `claude.exe` or npm install), the pet is woken up if it isn't running — even if you quit it earlier; on by default; toggle with right-click → "打开 Claude 时自动启动". Done by a watcher process that starts at login and, on Windows, subscribes to process-start events (blink-and-you-miss-it runs like `claude --version` don't count) |
 | `pets[].size` / `position` / `offsetX` / `offsetY` | Sprite height (default 200, the same as the dsh-pet maid), starting corner and offset |
 | `animationWeights` / `roam` / `walkSpeed` | Animation-chain weights, whether to roam, walking speed |
+| `idleAnimation` | Random small actions while idle: `{enabled, minSec, maxSec}` — after each small action ends, another random one plays `minSec`–`maxSec` seconds later (default 15–45); when on, this alone sets how often small actions play; editable in the settings window |
 | `physics` | Gravity, bounciness, ground friction, fling strength, pet-to-pet collisions `petCollision` |
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `statusTexts` | Work-status following and notifications |
 | `whisper` / `brain` | Muttering and chat |

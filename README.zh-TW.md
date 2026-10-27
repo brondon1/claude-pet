@@ -166,6 +166,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 | `autoStart` | 每次開啟 Claude 桌面版或 Claude Code CLI（原生 `claude.exe`、npm 安裝的都算）時，桌寵沒在執行就自動喚醒——之前手動結束了也會；預設開，右鍵「打开 Claude 时自动启动」可直接開關。由開機自啟的守望行程實作，Windows 上訂閱行程啟動事件（一閃而過的 `claude --version` 這類不算） |
 | `pets[].size` / `position` / `offsetX` / `offsetY` | 形象高度（預設 200，與 dsh-pet 女僕等高）、初始角落與偏移 |
 | `animationWeights` / `roam` / `walkSpeed` | 動畫鏈權重、是否溜達、散步速度 |
+| `idleAnimation` | 待機隨機小動作：`{enabled, minSec, maxSec}`，每段小動作播完後隔 `minSec`~`maxSec` 秒（預設 15~45）再隨機來一段；開著時小動作頻率只由它決定，設定視窗裡可改 |
 | `physics` | 重力、反彈係數、地面摩擦、甩出力道、寵物間碰撞 `petCollision` |
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `statusTexts` | 工作狀態跟隨與通知 |
 | `whisper` / `brain` | 碎碎念與對話 |

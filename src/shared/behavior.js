@@ -95,6 +95,17 @@ export const pickNext = ({ prev, weights = DEFAULT_WEIGHTS, canWalk = true, rand
   return 'idle';
 };
 
+/**
+ * 待机时多久随机来一段小动作（毫秒）：在 [minSec, maxSec] 里均匀取，maxSec 小于 minSec 时按 minSec。
+ * @param {{minSec?: number, maxSec?: number}} o 配置 idleAnimation
+ * @param {() => number} [rand] 随机源
+ */
+export const idleAnimDelay = ({ minSec = 15, maxSec = 45 } = {}, rand = Math.random) => {
+  const lo = Math.max(3, Number(minSec) || 15);
+  const hi = Math.max(lo, Number(maxSec) || lo);
+  return Math.round((lo + rand() * (hi - lo)) * 1000);
+};
+
 /** 点击回应随机选一个。 */
 export const pickClick = (rand = Math.random) => {
   const list = Object.keys(ACTIONS).filter((k) => ACTIONS[k].cat === 'click');

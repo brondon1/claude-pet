@@ -326,3 +326,12 @@ test('isClaudeLaunch: desktop main / CLI count, Electron helpers and other node 
   assert.equal(isClaudeLaunch('node.exe', 'node scripts/start.mjs'), false, 'other node');
   assert.equal(isClaudeLaunch('chrome.exe', 'claude'), false);
 });
+
+test('idleAnimDelay stays within [minSec, maxSec] and tolerates bad input', async () => {
+  const { idleAnimDelay } = await import('../src/shared/behavior.js');
+  assert.equal(idleAnimDelay({ minSec: 10, maxSec: 20 }, () => 0), 10_000);
+  assert.equal(idleAnimDelay({ minSec: 10, maxSec: 20 }, () => 0.5), 15_000);
+  assert.equal(idleAnimDelay({ minSec: 30, maxSec: 5 }, () => 0.9), 30_000, 'max < min → min');
+  assert.equal(idleAnimDelay({ minSec: 0, maxSec: 0 }, () => 0), 15_000, 'invalid → default');
+  assert.equal(idleAnimDelay({ minSec: 1, maxSec: 1 }, () => 0), 3_000, 'floor at 3s');
+});

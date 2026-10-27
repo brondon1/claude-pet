@@ -166,6 +166,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 | `autoStart` | Claude デスクトップアプリや Claude Code CLI（ネイティブの `claude.exe`、npm 版どちらも）を起動するたびに、ペットが動いていなければ自動で呼び起こします（以前に手動で終了していても）。デフォルトでオン。右クリック「打开 Claude 时自动启动」で切り替え。ログイン時に起動する見張りプロセスが担当し、Windows ではプロセス起動イベントを購読します（`claude --version` のような一瞬で終わるものは対象外） |
 | `pets[].size` / `position` / `offsetX` / `offsetY` | 立ち絵の高さ（デフォルト 200、dsh-pet のメイドと同じ）、初期位置の角とオフセット |
 | `animationWeights` / `roam` / `walkSpeed` | アニメーションチェーンの重み、お散歩するか、歩く速さ |
+| `idleAnimation` | 待機中のランダムな小さな動作：`{enabled, minSec, maxSec}`。小さな動作が終わるたびに `minSec`〜`maxSec` 秒（デフォルト 15〜45）後、次をランダムに再生。オンのときは小さな動作の頻度はこれだけで決まります。設定ウィンドウでも変更可 |
 | `physics` | 重力、反発係数、地面の摩擦、投げる強さ、ペット同士の衝突 `petCollision` |
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `statusTexts` | 作業状態への連動と通知 |
 | `whisper` / `brain` | ひとりごとと会話 |
