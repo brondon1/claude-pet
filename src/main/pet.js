@@ -20,6 +20,8 @@ import { latestThought, statusBubble } from '../shared/thought.js';
 import { bodyBox } from '../shared/collision.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+/** 边框姿势图的显示高度（站姿高度 size 的倍数，按眼距对齐；与 pet.css 的 --pose-h 一致）。 */
+const POSE_H = { left: 0.9, right: 0.63, top: 0.73 };
 
 /** 读会话记录末尾 64KB，取 Claude 最新的可见思考过程（说的话 / 正在做的那一步）。 */
 const readThought = (file) => {
@@ -353,27 +355,40 @@ export class Pet {
 
   // ===================== 趴在屏幕边上 =====================
   /** 身体贴着工作区左 / 右边时返回 'left' / 'right'，否则 null。 */
-  edgeSide(margin = 30) {
+  /**
+   * 离哪条边框最近（左 / 右 / 上，在 margin 以内才算），拖出边框外的也算贴着那条边。
+   * 站姿下：身体左右贴边时窗口 x = bounds.minX / maxX，头顶贴工作区上沿时窗口 y = bounds.minY。
+   */
+  edgeSide(margin = 60) {
     const b = this.bounds();
-    if (this.st.x <= b.minX + margin) return 'left';
-    if (this.st.x >= b.maxX - margin) return 'right';
-    return null;
+    const d = { left: this.st.x - b.minX, right: b.maxX - this.st.x, top: this.st.y - b.minY };
+    const [side, dist] = Object.entries(d).sort((x, y) => x[1] - y[1])[0];
+    return dist <= margin ? side : null;
   }
 
   /**
-   * 趴到屏幕左 / 右边上：换成扒着屏幕边探头的姿势图，身子藏在屏幕边后面（渲染端 #pet.edge-left / edge-right）。
-   * 窗口贴着工作区那一侧放。待一会儿（edge.minStaySec~maxStaySec）自己下来，拖她也会下来。
+   * 扒到屏幕边框上：左 / 右边换成扒着屏幕边探头的姿势图，上边换成趴在上边框往下看的姿势图
+   * （渲染端 #pet.edge-left / edge-right / edge-top）。贴到离放手位置最近的那一点：左右边保留高度，上边保留左右位置。
+   * 待一会儿（edge.minStaySec~maxStaySec）自己下来，拖她也会下来。
    */
   enterEdge(side) {
     const st = this.st;
     const cfg = this.ctx.config().edge ?? {};
     const a = screen.getDisplayNearestPoint({ x: Math.round(this.center().x), y: Math.round(this.center().y) }).workArea;
+    const b = this.bounds();
     st.mode = 'edge';
     st.edge = side;
     st.vx = st.vy = 0;
-    // 窗口贴着屏幕边；姿势图下边是在大腿处裁断的，所以总是落在地面（任务栏上沿），断口藏在任务栏后面
-    st.x = side === 'right' ? a.x + a.width - this.W : a.x;
-    st.y = a.y + a.height - this.H;
+    if (side === 'top') {
+      // 窗口顶贴着工作区上沿，姿势图画在窗口顶部（气泡在她下面）
+      st.x = Math.max(b.minX, Math.min(b.maxX, st.x));
+      st.y = a.y;
+    } else {
+      // 窗口贴着屏幕边，高度就用放手的高度；姿势图（贴窗口底）整张都得在工作区里
+      const ph = this.S * POSE_H[side];
+      st.x = side === 'right' ? a.x + a.width - this.W : a.x;
+      st.y = Math.max(a.y - (this.H - ph), Math.min(a.y + a.height - this.H, st.y));
+    }
     const min = (cfg.minStaySec ?? 60) * 1000;
     const max = Math.max(min, (cfg.maxStaySec ?? 240) * 1000);
     st.edgeUntil = Date.now() + min + Math.random() * (max - min);
@@ -391,10 +406,16 @@ export class Pet {
     st.edge = null;
     this.send('edge', null);
     const b = this.bounds();
-    st.x = side === 'right' ? b.maxX : b.minX;
-    st.facing = side === 'right' ? -1 : 1;
+    if (side === 'top') st.y = b.minY;
+    else {
+      st.x = side === 'right' ? b.maxX : b.minX;
+      st.facing = side === 'right' ? -1 : 1;
+    }
     this.commitPos();
-    this.startThrow(side === 'right' ? -160 : 160, -260);
+    // 「放哪停哪」开着就在原处站着；否则左右边轻轻跳回屏幕里，上边直接掉下来
+    if (this.ctx.config().physics.stayAfterDrag) return this.stayHere();
+    if (side === 'top') this.startThrow(0, 0);
+    else this.startThrow(side === 'right' ? -160 : 160, -260);
   }
 
   /** 趴在边上时的「下一个动作」：一直趴着（只眨眼呼吸），工作状态照样更新气泡，到点就下来。 */
@@ -631,10 +652,9 @@ export class Pet {
     const cfg = this.ctx.config();
     const v = estimateReleaseVelocity(this.st.trail, Date.now(), cfg.physics.throwPower);
     const stay = cfg.physics.stayAfterDrag;
-    // 拎到屏幕左 / 右边上轻轻放下（不是甩出去）就扒在边上；「放哪停哪」开着时只在贴着地面放下才扒边（扒边姿势总是站在任务栏上）
-    const nearFloor = this.st.y >= this.bounds().maxY - 40;
-    const gentle = Math.hypot(v?.vx ?? 0, v?.vy ?? 0) < 600;
-    const side = cfg.edge?.enabled !== false && (stay ? nearFloor : gentle) ? this.edgeSide() : null;
+    // 拖到左 / 右 / 上边框附近松手（不是用力甩出去）就扒到最近的那条边框上
+    const gentle = stay || Math.hypot(v?.vx ?? 0, v?.vy ?? 0) < 900;
+    const side = cfg.edge?.enabled !== false && gentle ? this.edgeSide() : null;
     if (side) return this.enterEdge(side);
     if (stay) return this.stayHere();
     this.startThrow(v?.vx ?? 0, v?.vy ?? 0);

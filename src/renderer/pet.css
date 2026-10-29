@@ -167,6 +167,7 @@ body {
 }
 #pet.edge-left,
 #pet.edge-right,
+#pet.edge-top,
 #pet[data-action='lie'] {
   --ph: calc(var(--size) * var(--pose-h));
   height: var(--ph);
@@ -183,22 +184,48 @@ body {
   left: auto;
   right: 0;
 }
-#pet[data-action='lie']:not(.edge-left, .edge-right) {
+#pet[data-action='lie']:not(.edge-left, .edge-right, .edge-top),
+#pet.edge-top {
   --pose-h: 0.73;
   --pose-ar: calc(688 / 900);
   left: calc(50% - var(--ph) * var(--pose-ar) / 2);
 }
+/* 趴在上边框往下看：用趴着那张，画在窗口顶部（窗口顶贴着屏幕上沿） */
+#pet.edge-top {
+  top: 0;
+  bottom: auto;
+}
 #pet.edge-left .poseEdgeLeft,
 #pet.edge-right .poseEdgeRight,
-#pet[data-action='lie']:not(.edge-left, .edge-right) .poseLie {
+#pet.edge-top .poseLie,
+#pet[data-action='lie']:not(.edge-left, .edge-right, .edge-top) .poseLie {
   display: block;
 }
-#pet:is(.edge-left, .edge-right, [data-action='lie']) :is(#squash, #fx) {
+/* 左右两张在大腿处、上边那张在指尖处裁断：扒在半空时断口淡出，不露一刀切的边 */
+#pet:is(.edge-left, .edge-right) .pose {
+  -webkit-mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
+}
+#pet.edge-top .pose {
+  -webkit-mask-image: linear-gradient(to bottom, #000 90%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 90%, transparent 100%);
+}
+#pet:is(.edge-left, .edge-right, .edge-top, [data-action='lie']) :is(#squash, #fx) {
   display: none;
 }
-#pet:is(.edge-left, .edge-right, [data-action='lie']) #hit {
+#pet:is(.edge-left, .edge-right, .edge-top, [data-action='lie']) #hit {
   left: 0;
   right: 0;
+}
+/* 上边框：气泡放到她下面，尖角朝上 */
+#stage.edge-top #top {
+  bottom: auto;
+  top: calc(var(--size) * 0.73 + 10px);
+}
+#stage.edge-top #bubble::after {
+  top: -7px;
+  bottom: auto;
+  transform: translateX(-50%) rotate(225deg);
 }
 /* 气泡挪到脑袋上方，贴着她探进来的那一侧 */
 #stage.edge-left #top {

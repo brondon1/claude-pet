@@ -58,11 +58,12 @@ window.pet.on('edge', (side) => {
   for (const el of [pet, $('stage')]) {
     el.classList.toggle('edge-left', side === 'left');
     el.classList.toggle('edge-right', side === 'right');
+    el.classList.toggle('edge-top', side === 'top');
   }
 });
 
 /** 姿势图上脸的位置（两眼中点，按图片宽高的比例），点到附近算「脸蛋」，再往上算「头」。 */
-const POSE_FACE = { left: [0.476, 0.413], right: [0.525, 0.319], lie: [0.44, 0.458] };
+const POSE_FACE = { left: [0.476, 0.413], right: [0.525, 0.319], top: [0.44, 0.458], lie: [0.44, 0.458] };
 
 /** 点在哪个部位：站姿按立绘坐标查部位表；姿势图只分脸 / 头 / 其他（返回 null 就是「戳了一下」）。 */
 const clickPart = (cx, cy) => {

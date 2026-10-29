@@ -495,7 +495,7 @@ app.whenReady().then(() => {
     edge: (side, id) => {
       const p = pick(id);
       if (!p) return false;
-      if (side === 'left' || side === 'right') {
+      if (side === 'left' || side === 'right' || side === 'top') {
         if (p.st.mode === 'drag') return false;
         p.enterEdge(side);
       } else p.leaveEdge();
