@@ -93,7 +93,7 @@ The hook script (`hooks/claude-pet-hook.mjs`) runs silently with a 1.5-second ti
 - **Follows Claude Code's work status**: six animations — thinking / coding / waiting for approval / organizing memory / celebrating / error — plus a persistent bubble (see the next section)
 - **System notifications**: Windows notifications when your approval is needed, when Claude is waiting for your reply, and when a long task finishes (header shows "小橙" and her avatar)
 - **Muttering and chat**: at random times, during small actions or after Claude Code events, she calls Claude Code to come up with a line; right-click → "和我聊天…" (Chat with me) to talk to her, with persistent memory
-- **Context menu / tray**: play any action via "动作 → category → action"; toggle work-status following / roaming / notifications; install or uninstall hooks; open / reload the config; clear chat memory; when quitting she waves and says "拜拜，下次见~" (Bye, see you next time)
+- **Context menu / tray**: play any action via "动作 → category → action"; toggle work-status following / roaming / notifications; connect Claude Code (install hooks) in one click while it isn't connected yet; when quitting she waves and says "拜拜，下次见~" (Bye, see you next time)
 - **Accessibility**: respects `prefers-reduced-motion` (large movements and squashing are removed when reduced motion is on)
 
 ## ⚙️ Work-status integration (Claude Code hooks)
@@ -164,7 +164,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 
 ## ⚙️ Configuration
 
-Defaults are in [`config.jsonc`](config.jsonc) (every field is commented). **Don't edit that file** — put only the fields you want to change in `~/.claude-pet/config.jsonc` (objects are merged key by key; arrays / scalars are replaced whole), then right-click → "重载配置" (Reload config) to apply it immediately (`port` needs a restart).
+Defaults are in [`config.jsonc`](config.jsonc) (every field is commented). **Don't edit that file** — put only the fields you want to change in `~/.claude-pet/config.jsonc` (objects are merged key by key; arrays / scalars are replaced whole), then restart the pet to apply it; most common options can also be changed in right-click → "设置…" (Settings), which applies on save.
 
 | Field | Description |
 |---|---|

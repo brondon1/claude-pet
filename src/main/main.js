@@ -186,18 +186,6 @@ const renamePet = (pet, raw) => {
   return true;
 };
 
-const reloadConfig = () => {
-  const oldName = config.pets[0].name;
-  const r = loadConfig();
-  config = r.config;
-  registerToastIdentity(config.pets[0].name, oldName);
-  tracker = new SessionTracker({ texts: config.statusTexts, notifyMinBusyMs: config.notifyMinBusySec * 1000, celebrateChance: () => config.celebrateChance ?? 0.3 });
-  reconcilePets();
-  syncAutoStart();
-  for (const w of r.warnings) console.warn('[claude-pet]', w);
-  primary()?.say(r.warnings.length ? `配置有问题：${r.warnings[0]}` : '配置已重载~', 4000);
-};
-
 // ===================== Claude Code 事件 =====================
 const onHook = (p) => {
   const fx = tracker.apply(p);
@@ -411,7 +399,8 @@ const globalMenu = (pet) => [
       pet?.say(i.checked ? '好哒，以后打开 Claude 我就自动出来~' : '知道啦，以后要你手动叫我出来', 5000);
     },
   },
-  { label: hooksInstalled() ? '断开 Claude Code 联动…' : '连接 Claude Code（安装 hooks）…', click: toggleHooks },
+  // 只在还没连上时出现（首次启动的提示会让你右键点它）；连上后不再提供断开入口
+  ...(hooksInstalled() ? [] : [{ label: '连接 Claude Code（安装 hooks）…', click: toggleHooks }]),
   { type: 'separator' },
   {
     label: '记忆链',
@@ -429,9 +418,6 @@ const globalMenu = (pet) => [
       { label: '忘掉关于我的一切…', click: forgetMemory },
     ],
   },
-  { type: 'separator' },
-  { label: '打开配置文件', click: () => shell.openPath(USER_CONFIG) },
-  { label: '重载配置', click: reloadConfig },
   { type: 'separator' },
   { label: '退出', click: quitWithWave },
 ];

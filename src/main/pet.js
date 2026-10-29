@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { listWebm } from './config.js';
-import { Brain, clearMemory, limitPausedUntil } from './brain.js';
+import { Brain, limitPausedUntil } from './brain.js';
 import { fmtReset } from '../shared/limit.js';
 import { ACTIONS, MENU_GROUPS, VIDEO_GROUP, pickNext, pickClick, idleAnimDelay } from '../shared/behavior.js';
 import { STATUS_ANIM } from '../shared/status.js';
@@ -726,7 +726,6 @@ export class Pet {
       },
       { type: 'separator' },
       { label: '回到初始位置', click: () => this.placeAtCorner() },
-      { label: '清空我的对话记忆', click: () => (clearMemory(this.id), this.say('我…我忘了什么吗？', 4000)) },
       { type: 'separator' },
       ...this.ctx.globalMenu(this),
     ]);
