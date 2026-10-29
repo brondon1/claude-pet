@@ -384,6 +384,17 @@ const globalMenu = (pet) => [
   { label: '设置…（多开 / 碰撞 / 物理）', click: openSettings },
   { label: '到处溜达', type: 'checkbox', checked: config.roam, click: (i) => ((config.roam = i.checked), saveUserValue('roam', i.checked)) },
   {
+    label: '拖动后停在原地（不往下掉）',
+    type: 'checkbox',
+    checked: !!config.physics.stayAfterDrag,
+    click: (i) => {
+      config.physics = { ...config.physics, stayAfterDrag: i.checked };
+      saveUserConfig({ physics: config.physics });
+      // 关掉时，悬在半空的宠物自己落回地面
+      if (!i.checked) for (const p of pets) if (p.st.mode === 'auto') p.startThrow(0, 0);
+    },
+  },
+  {
     label: '系统通知',
     type: 'checkbox',
     checked: config.notificationsEnabled,

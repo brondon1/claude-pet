@@ -174,7 +174,7 @@ Defaults are in [`config.jsonc`](config.jsonc) (every field is commented). **Don
 | `animationWeights` / `roam` / `walkSpeed` | Animation-chain weights, whether to roam, walking speed |
 | `edge` | Lying on the screen edge: `enabled`, `walkChance` (chance of climbing on when she walks into the edge, default 0.3), `minStaySec` / `maxStaySec` (how long she stays, default 60–240 s) |
 | `idleAnimation` | Random small actions while idle: `{enabled, minSec, maxSec}` — after each small action ends, another random one plays `minSec`–`maxSec` seconds later (default 15–45); when on, this alone sets how often small actions play; editable in the settings window |
-| `physics` | Gravity, bounciness, ground friction, fling strength, pet-to-pet collisions `petCollision` |
+| `physics` | Gravity, bounciness, ground friction, fling strength, pet-to-pet collisions `petCollision`; `stayAfterDrag`: after dragging she stays where you let go — no fling, no falling (toggle in the settings window or right-click → "拖动后停在原地") |
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `celebrateChance` / `statusTexts` | Work-status following and notifications; `celebrateChance` is the chance of celebrating when a turn finishes (0–1, default 0.3; set as a percentage in the settings window) |
 | `whisper` / `brain` | Muttering and chat |
 | `schedule` | Scheduled actions (time, action, context, weekdays) |

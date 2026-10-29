@@ -174,7 +174,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 | `animationWeights` / `roam` / `walkSpeed` | アニメーションチェーンの重み、お散歩するか、歩く速さ |
 | `edge` | 画面の端に寝そべる：`enabled`、`walkChance`（散歩で端に着いたとき寝そべる確率、デフォルト 0.3）、`minStaySec` / `maxStaySec`（寝そべる時間、デフォルト 60〜240 秒） |
 | `idleAnimation` | 待機中のランダムな小さな動作：`{enabled, minSec, maxSec}`。小さな動作が終わるたびに `minSec`〜`maxSec` 秒（デフォルト 15〜45）後、次をランダムに再生。オンのときは小さな動作の頻度はこれだけで決まります。設定ウィンドウでも変更可 |
-| `physics` | 重力、反発係数、地面の摩擦、投げる強さ、ペット同士の衝突 `petCollision` |
+| `physics` | 重力、反発係数、地面の摩擦、投げる強さ、ペット同士の衝突 `petCollision`。`stayAfterDrag`：ドラッグして離した場所にそのまま留まり、投げ飛ばしも落下もしない（設定ウィンドウか右クリック「拖动后停在原地」で切り替え） |
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `celebrateChance` / `statusTexts` | 作業状態への連動と通知。`celebrateChance` はターン完了時にお祝いする確率（0〜1、デフォルト 0.3。設定ウィンドウではパーセントで変更） |
 | `whisper` / `brain` | ひとりごとと会話 |
 | `schedule` | 定時アクション（時刻、動作、状況、曜日） |

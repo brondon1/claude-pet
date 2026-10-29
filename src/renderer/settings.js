@@ -79,7 +79,7 @@ const renderGlobal = () => {
   setVal($('g-memMax'), model.memory?.maxItems);
   setVal($('g-cliModel'), model.brain.cliModel);
   setVal($('g-persona'), model.brain.persona);
-  for (const k of ['gravity', 'restitution', 'groundFriction', 'throwPower', 'ceilingBounce', 'petCollision']) setVal($(`ph-${k}`), model.physics[k]);
+  for (const k of ['gravity', 'restitution', 'groundFriction', 'throwPower', 'ceilingBounce', 'petCollision', 'stayAfterDrag']) setVal($(`ph-${k}`), model.physics[k]);
 };
 
 const readGlobal = () => ({
@@ -104,9 +104,9 @@ const readGlobal = () => ({
     maxItems: getVal($('g-memMax'), true),
   },
   physics: Object.fromEntries(
-    ['gravity', 'restitution', 'groundFriction', 'throwPower', 'ceilingBounce', 'petCollision'].map((k) => [
+    ['gravity', 'restitution', 'groundFriction', 'throwPower', 'ceilingBounce', 'petCollision', 'stayAfterDrag'].map((k) => [
       k,
-      getVal($(`ph-${k}`), !['ceilingBounce', 'petCollision'].includes(k)),
+      getVal($(`ph-${k}`), !['ceilingBounce', 'petCollision', 'stayAfterDrag'].includes(k)),
     ]),
   ),
 });

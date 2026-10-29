@@ -485,7 +485,7 @@ export class Pet {
       if (st.x <= b.minX || st.x >= b.maxX) {
         st.x = Math.max(b.minX, Math.min(b.maxX, st.x));
         const edge = cfg.edge ?? {};
-        if (edge.enabled !== false && Math.random() < (edge.walkChance ?? 0.3)) {
+        if (edge.enabled !== false && st.y >= b.maxY - 2 && Math.random() < (edge.walkChance ?? 0.3)) {
           this.enterEdge(st.x <= b.minX ? 'left' : 'right');
           this.maybeWhisper(this.ctx.config().whisper.actionChance, '你走到屏幕边上，干脆趴在边上探出头来看主人', 800);
           return;
@@ -495,9 +495,11 @@ export class Pet {
       }
       this.commitPos();
     } else {
-      // 不在地面上（比如分辨率变了 / 被系统挪了 / 放在了下方还有屏的屏上）就掉下去
+      // 不在地面上（比如分辨率变了 / 被系统挪了 / 放在了下方还有屏的屏上）就掉下去；「放哪停哪」开着时悬空也不掉，
+      // 只有跑到地面以下（任务栏后面）才回到地面
       const b = this.throwBounds();
-      if (st.y < b.maxY - 2 || st.y > b.maxY + 2) {
+      const stay = cfg.physics.stayAfterDrag;
+      if (stay ? st.y > b.maxY + 2 : st.y < b.maxY - 2 || st.y > b.maxY + 2) {
         st.y = Math.min(st.y, b.maxY);
         return this.startThrow(0, 0);
       }
@@ -626,11 +628,29 @@ export class Pet {
 
   dragEnd() {
     if (this.st.mode !== 'drag') return;
-    const v = estimateReleaseVelocity(this.st.trail, Date.now(), this.ctx.config().physics.throwPower);
-    // 拎到屏幕左 / 右边上轻轻放下（不是甩出去）就趴在边上
-    const side = this.ctx.config().edge?.enabled !== false && Math.hypot(v?.vx ?? 0, v?.vy ?? 0) < 600 ? this.edgeSide() : null;
+    const cfg = this.ctx.config();
+    const v = estimateReleaseVelocity(this.st.trail, Date.now(), cfg.physics.throwPower);
+    const stay = cfg.physics.stayAfterDrag;
+    // 拎到屏幕左 / 右边上轻轻放下（不是甩出去）就扒在边上；「放哪停哪」开着时只在贴着地面放下才扒边（扒边姿势总是站在任务栏上）
+    const nearFloor = this.st.y >= this.bounds().maxY - 40;
+    const gentle = Math.hypot(v?.vx ?? 0, v?.vy ?? 0) < 600;
+    const side = cfg.edge?.enabled !== false && (stay ? nearFloor : gentle) ? this.edgeSide() : null;
     if (side) return this.enterEdge(side);
+    if (stay) return this.stayHere();
     this.startThrow(v?.vx ?? 0, v?.vy ?? 0);
+  }
+
+  /** 「放哪停哪」：不甩也不掉，就停在松手的位置（收进当前屏幕的工作区里，免得半个身子在屏幕外）。 */
+  stayHere() {
+    const st = this.st;
+    const b = this.bounds();
+    st.x = Math.max(b.minX, Math.min(b.maxX, st.x));
+    st.y = Math.max(b.minY, Math.min(b.maxY, st.y));
+    st.vx = st.vy = 0;
+    st.mode = 'auto';
+    this.commitPos();
+    st.queue.unshift('idle');
+    this.next();
   }
 
   /** 点哪里说哪里：每个部位有自己的情境和小反应；连续点击会告诉 Claude 碰了几下。 */

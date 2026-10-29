@@ -174,7 +174,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 | `animationWeights` / `roam` / `walkSpeed` | 動畫鏈權重、是否溜達、散步速度 |
 | `edge` | 趴在螢幕邊上：`enabled`、`walkChance`（散步走到邊上時趴上去的機率，預設 0.3）、`minStaySec` / `maxStaySec`（趴多久，預設 60~240 秒） |
 | `idleAnimation` | 待機隨機小動作：`{enabled, minSec, maxSec}`，每段小動作播完後隔 `minSec`~`maxSec` 秒（預設 15~45）再隨機來一段；開著時小動作頻率只由它決定，設定視窗裡可改 |
-| `physics` | 重力、反彈係數、地面摩擦、甩出力道、寵物間碰撞 `petCollision` |
+| `physics` | 重力、反彈係數、地面摩擦、甩出力道、寵物間碰撞 `petCollision`；`stayAfterDrag`：拖動後停在放手的位置，不甩出去也不往下掉（設定視窗或右鍵「拖动后停在原地」可開） |
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `celebrateChance` / `statusTexts` | 工作狀態跟隨與通知；`celebrateChance` 是完成一輪時慶祝的機率（0~1，預設 0.3，設定視窗裡按百分比改） |
 | `whisper` / `brain` | 碎碎念與對話 |
 | `schedule` | 定時動作（時刻、動作、情境、星期幾） |

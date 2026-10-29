@@ -50,7 +50,8 @@
     "groundFriction": 2.5, // 地面摩擦（/s）
     "ceilingBounce": true, // 顶部是否反弹
     "throwPower": 1, // 甩出力度倍率
-    "petCollision": true // 宠物互撞：飞行中的宠物撞到别的宠物会弹开（动量守恒，质量 ∝ 尺寸²）
+    "petCollision": true, // 宠物互撞：飞行中的宠物撞到别的宠物会弹开（动量守恒，质量 ∝ 尺寸²）
+    "stayAfterDrag": false // 放哪停哪：拖动后松手就停在那里，不甩出去也不往下掉（悬空也会在那个高度散步）
   },
 
   // ===================== 跟随 Claude Code =====================
