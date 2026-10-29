@@ -17,9 +17,8 @@ import { ACTIONS, withVideoActions } from '../shared/behavior.js';
 import { SessionTracker } from '../shared/status.js';
 import { dueEntries, resolveAction } from '../shared/schedule.js';
 import { collide } from '../shared/collision.js';
-import { recordObservation, maybeConsolidate, memoryItems, memoryLinks, memoryStats, forgetAll, backfillStats, CHAIN_FILE } from './memory.js';
+import { recordObservation, maybeConsolidate, memoryItems, memoryLinks, memoryStats, backfillStats } from './memory.js';
 import { routineDigest } from '../shared/memory-chain.js';
-import { KINDS } from '../shared/memory-chain.js';
 import { createVoice } from '../shared/voice.js';
 import { DEFAULT_LIMIT_LINES, limitLine, fmtReset } from '../shared/limit.js';
 
@@ -97,48 +96,6 @@ const consolidate = (force = false) => {
 const observe = (ev) => {
   recordObservation(config.memory, ev);
   consolidate();
-};
-
-/** 右键「她记得的你…」：列出记忆条目和最近几环。 */
-const showMemory = async () => {
-  const items = memoryItems();
-  const links = memoryLinks();
-  const body = items.length
-    ? items.map((m, i) => `${i + 1}. 【${KINDS[m.kind] ?? m.kind}】${m.text}`).join('\n')
-    : '还没有整理出记忆。多和她聊聊、多用用 Claude Code，攒够了她会自己整理。';
-  const recent = links
-    .slice(-3)
-    .reverse()
-    .map((l) => `${l.at.slice(0, 16).replace('T', ' ')}  +${l.added.length} / -${l.removed.length}${l.note ? `  「${l.note}」` : ''}`)
-    .join('\n');
-  const { response } = await dialog.showMessageBox({
-    type: 'info',
-    title: `${primary()?.name ?? '小橙'}记得的你`,
-    message: `${primary()?.name ?? '小橙'}记得的你（${items.length} 条，记忆链 ${links.length} 环）`,
-    detail: recent ? `${body}\n\n最近的整理：\n${recent}` : body,
-    buttons: ['好', '现在整理一下', '打开记忆文件'],
-    defaultId: 0,
-  });
-  if (response === 1) {
-    primary()?.say('让我想想你最近都在干嘛…', 0);
-    const r = await consolidate(true);
-    primary()?.say(r ? r.note || `记忆整理好啦，现在记得 ${memoryItems().length} 件关于你的事` : '最近没什么新的可以整理的~', 6000);
-  }
-  if (response === 2) shell.openPath(CHAIN_FILE);
-};
-
-const forgetMemory = async () => {
-  const { response } = await dialog.showMessageBox({
-    type: 'warning',
-    message: '让她忘掉关于你的一切？',
-    detail: '记忆条目、记忆链和观察记录都会删除，不影响各只宠物的对话记录。',
-    buttons: ['忘掉', '取消'],
-    defaultId: 1,
-    cancelId: 1,
-  });
-  if (response !== 0) return;
-  forgetAll();
-  primary()?.say('咦…我们是第一次见面吗？', 5000);
 };
 
 // ===================== 宠物列表 =====================
@@ -368,59 +325,49 @@ const toggleHooks = async () => {
 };
 
 /** 右键菜单里与具体哪只宠物无关的部分。 */
-const globalMenu = (pet) => [
-  { label: '设置…（多开 / 碰撞 / 物理）', click: openSettings },
-  { label: '到处溜达', type: 'checkbox', checked: config.roam, click: (i) => ((config.roam = i.checked), saveUserValue('roam', i.checked)) },
-  {
-    label: '拖动后停在原地（不往下掉）',
-    type: 'checkbox',
-    checked: !!config.physics.stayAfterDrag,
-    click: (i) => {
-      config.physics = { ...config.physics, stayAfterDrag: i.checked };
-      saveUserConfig({ physics: config.physics });
-      // 关掉时，悬在半空的宠物自己落回地面
-      if (!i.checked) for (const p of pets) if (p.st.mode === 'auto') p.startThrow(0, 0);
-    },
-  },
-  {
-    label: '系统通知',
-    type: 'checkbox',
-    checked: config.notificationsEnabled,
-    click: (i) => ((config.notificationsEnabled = i.checked), saveUserValue('notificationsEnabled', i.checked)),
-  },
-  {
-    label: '打开 Claude 时自动启动',
-    type: 'checkbox',
-    checked: config.autoStart !== false,
-    click: (i) => {
-      config.autoStart = i.checked;
-      saveUserValue('autoStart', i.checked);
-      syncAutoStart();
-      pet?.say(i.checked ? '好哒，以后打开 Claude 我就自动出来~' : '知道啦，以后要你手动叫我出来', 5000);
-    },
-  },
-  // 只在还没连上时出现（首次启动的提示会让你右键点它）；连上后不再提供断开入口
-  ...(hooksInstalled() ? [] : [{ label: '连接 Claude Code（安装 hooks）…', click: toggleHooks }]),
-  { type: 'separator' },
-  {
-    label: '记忆链',
-    submenu: [
-      { label: `她记得的你…（${memoryItems().length} 条）`, click: showMemory },
-      {
-        label: '从使用记录里慢慢了解你',
-        type: 'checkbox',
-        checked: config.memory?.enabled !== false,
-        click: (i) => {
-          config.memory = { ...config.memory, enabled: i.checked };
-          saveUserConfig({ memory: config.memory });
-        },
+/**
+ * 右键菜单里所有宠物共用的几组（每只宠物的菜单见 pet.js 的 menu()，按组拼起来）：
+ * behavior 行为开关、app 应用开关、settings 设置、quit 退出。
+ */
+const globalMenu = (pet) => ({
+  behavior: [
+    { label: '到处溜达', type: 'checkbox', checked: config.roam, click: (i) => ((config.roam = i.checked), saveUserValue('roam', i.checked)) },
+    {
+      label: '拖动后停在原地（不往下掉）',
+      type: 'checkbox',
+      checked: !!config.physics.stayAfterDrag,
+      click: (i) => {
+        config.physics = { ...config.physics, stayAfterDrag: i.checked };
+        saveUserConfig({ physics: config.physics });
+        // 关掉时，悬在半空的宠物自己落回地面
+        if (!i.checked) for (const p of pets) if (p.st.mode === 'auto') p.startThrow(0, 0);
       },
-      { label: '忘掉关于我的一切…', click: forgetMemory },
-    ],
-  },
-  { type: 'separator' },
-  { label: '退出', click: quitWithWave },
-];
+    },
+  ],
+  app: [
+    {
+      label: '系统通知',
+      type: 'checkbox',
+      checked: config.notificationsEnabled,
+      click: (i) => ((config.notificationsEnabled = i.checked), saveUserValue('notificationsEnabled', i.checked)),
+    },
+    {
+      label: '打开 Claude 时自动启动',
+      type: 'checkbox',
+      checked: config.autoStart !== false,
+      click: (i) => {
+        config.autoStart = i.checked;
+        saveUserValue('autoStart', i.checked);
+        syncAutoStart();
+        pet?.say(i.checked ? '好哒，以后打开 Claude 我就自动出来~' : '知道啦，以后要你手动叫我出来', 5000);
+      },
+    },
+    // 只在还没连上时出现（首次启动的提示会让你右键点它）；连上后不再提供断开入口
+    ...(hooksInstalled() ? [] : [{ label: '连接 Claude Code（安装 hooks）…', click: toggleHooks }]),
+  ],
+  settings: [{ label: '设置…', click: openSettings }],
+  quit: [{ label: '退出', click: quitWithWave }],
+});
 
 // ===================== IPC（按发送窗口找到对应的宠物） =====================
 ipcMain.on('video-meta', (_e, meta) => {

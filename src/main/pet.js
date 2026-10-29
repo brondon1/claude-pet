@@ -49,7 +49,8 @@ const readThought = (file) => {
  * @property {() => Record<string, number>} videoMeta 视频动作名 → 时长
  * @property {() => any} tracker Claude Code 会话状态跟踪器
  * @property {(pet: Pet) => void} promptLogin 提示登录（带「去登录」按钮）
- * @property {(pet: Pet) => Electron.MenuItemConstructorOptions[]} globalMenu 右键菜单里的全局项（设置、hooks、退出等）
+ * @property {(pet: Pet) => Record<'behavior' | 'app' | 'settings' | 'quit', Electron.MenuItemConstructorOptions[]>} globalMenu
+ *   右键菜单里所有宠物共用的几组（行为开关、应用开关、设置、退出）
  */
 
 export class Pet {
@@ -711,7 +712,11 @@ export class Pet {
     const actions = this.ctx.actions();
     const videoMeta = this.ctx.videoMeta();
     const extra = Object.keys(videoMeta).filter((k) => !ACTIONS[k]);
+    const g = this.ctx.globalMenu(this);
+    const sep = { type: 'separator' };
     return Menu.buildFromTemplate([
+      // 和她互动
+      { label: '和我聊天…', click: () => this.openInput() },
       {
         label: '动作',
         submenu: Object.entries({ ...MENU_GROUPS, ...(extra.length ? { [VIDEO_GROUP]: extra } : {}) }).map(([group, list]) => ({
@@ -719,15 +724,21 @@ export class Pet {
           submenu: list.map((a) => ({ label: actions[a].label, click: () => this.requestAction(a) })),
         })),
       },
-      { label: '和我聊天…', click: () => this.openInput() },
       {
         label: `给我改名字…（现在叫「${this.name}」）`,
         click: () => this.openInput({ mode: 'rename', placeholder: '给我起个新名字，回车确定（Esc 取消）', value: this.name }),
       },
-      { type: 'separator' },
+      sep,
+      // 她怎么动
+      ...g.behavior,
       { label: '回到初始位置', click: () => this.placeAtCorner() },
-      { type: 'separator' },
-      ...this.ctx.globalMenu(this),
+      sep,
+      // 应用
+      ...g.app,
+      sep,
+      ...g.settings,
+      sep,
+      ...g.quit,
     ]);
   }
 
