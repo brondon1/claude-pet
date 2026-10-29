@@ -39,13 +39,23 @@ POSES = {
         'legs': {'cut': 706, 'overlap': 16, 'split': 245},
         'icon': (120, 150, 340, 370),
     },
+    # 趴在屏幕边上 / 趴着：豆包生成的三张姿势图。crop 先在源图上裁：左右两张裁到「墙」（屏幕边）那条竖线为止，
+    # 角色被墙挡住的一侧就是图片边缘；底部都裁在右下角水印上方（水印压在手 / 腿上，抠不掉），这部分在任务栏后面看不到
+    # cut：哪几条边是裁出来的（那里是角色本体，不能当背景种子，否则贴着切口的白衣服会被当背景抠掉）；
+    # 趴着那张底边穿过两只手之间的背景，必须从底边抠，所以不算
+    'pet-edge-left': {'src': 'edge-left.webp', 'crop': (111, 0, 1312, 1555), 'cut': ('left', 'bottom'), 'height': 900, 'pockets': False},
+    'pet-edge-right': {'src': 'edge-right.webp', 'crop': (0, 0, 1214, 1555), 'cut': ('right', 'bottom'), 'height': 900, 'pockets': False},
+    'pet-lie': {'src': 'lie.webp', 'crop': (0, 0, 1312, 1555), 'cut': (), 'height': 900, 'pockets': False},
 }
 pose = sys.argv[1] if len(sys.argv) > 1 else 'pet'
 cfg = POSES[pose]
 src = SRC_DIR / cfg['src']
 dst = OUT_DIR / f'{pose}.png'
 
-img = np.asarray(Image.open(src).convert('RGB')).astype(np.float32)
+srcimg = Image.open(src).convert('RGB')
+if cfg.get('crop'):
+    srcimg = srcimg.crop(cfg['crop'])
+img = np.asarray(srcimg).astype(np.float32)
 H, W, _ = img.shape
 
 # 背景色：取四角中位数
@@ -74,6 +84,9 @@ def grow(seed, allowed):
 
 border = np.zeros((H, W), bool)
 border[0], border[-1], border[:, 0], border[:, -1] = True, True, True, True
+# 裁过的图：被裁开的那几条边上是角色本体，不能当背景种子——只从源图原本的边开始泛洪
+for side in cfg.get('cut', ()):
+    {'top': border[0], 'bottom': border[-1], 'left': border[:, 0], 'right': border[:, -1]}[side][:] = False
 background = grow(border, like_bg)
 
 # 发丝之间被围住的背景小块：与边缘不连通，泛洪抠不到。和脸、白裙同色，只能看「四周是什么」——
@@ -117,7 +130,7 @@ for y0, x0 in zip(*np.nonzero(enclosed)):
 background = grow(background | pockets, like_bg | pockets)
 
 # 地面阴影：指定高度以下的浅色像素，只要和背景连通就并入背景（鞋口里露出的脚背被黑色描线围着，不会被吃掉）
-if cfg['shadow_y']:
+if cfg.get('shadow_y'):
     low = np.zeros((H, W), bool)
     low[cfg['shadow_y'] :] = True
     background = grow(background, background | (low & (img.mean(axis=2) > 135)))
@@ -129,7 +142,7 @@ center[H // 2 - 5 : H // 2 + 5, W // 2 - 5 : W // 2 + 5] = True
 body = grow(center, fg)
 
 # 书紧贴着裙摆时连通性分不开：沿裙摆外轮廓画多边形把书切掉，切剩的碎块再按连通性丢弃
-if cfg['books']:
+if cfg.get('books'):
     mask_img = Image.new('L', (W, H), 0)
     ImageDraw.Draw(mask_img).polygon(cfg['books'], fill=255)
     body &= ~(np.asarray(mask_img) > 0)
@@ -156,7 +169,7 @@ im.save(dst, optimize=True)
 print(f'{dst}  {im.size}  bbox(src)=x{xs.min()}-{xs.max()} y{ys.min()}-{ys.max()}')
 
 # 发间那朵花单独切一份（圆形羽化遮罩），思考 / 干活时叠在原位旋转——向 Claude 的转圈小星芒致敬
-if cfg['flower']:
+if cfg.get('flower'):
     (cx, cy), r = cfg['flower']
     flower = im.crop((cx - r, cy - r, cx + r, cy + r))
     yy, xx = np.mgrid[0 : 2 * r, 0 : 2 * r] + 0.5
@@ -168,7 +181,7 @@ if cfg['flower']:
     print(f'{fdst}  center={(cx, cy)} r={r}')
 
 # 托盘 / 通知图标：取脸部方块
-if cfg['icon']:
+if cfg.get('icon'):
     icon = im.crop(cfg['icon']).resize((128, 128), Image.LANCZOS)
     idst = dst.with_name('icon.png')
     icon.save(idst, optimize=True)

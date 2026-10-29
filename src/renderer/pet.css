@@ -151,33 +151,67 @@ body {
   left: calc(50% - var(--pw) / 2);
   width: var(--pw);
   height: var(--size);
-  transform-origin: 50% 50%;
-  transition: transform 0.35s cubic-bezier(0.3, 1.3, 0.5, 1);
 }
 
-/* 趴在屏幕边上：整个人横过来，脑袋朝屏幕里，下半身伸出窗口（窗口贴着屏幕边，伸出去的部分被裁掉）。
-   横过来后占 size × pw：右边时盒子从「窗口右边 - 0.55size」到「窗口右边 + 0.45size」，露出脑袋和上半身；
-   竖直方向底边离窗口底 0.05size（与 main/pet.js 的 enterEdge 对应） */
-#pet.edge-right {
-  transform: translate(calc(50vw - var(--size) * 0.05), calc(var(--size) * 0.14)) rotate(-90deg);
+/* ===================== 姿势图 =====================
+   趴在屏幕边上 / 趴着：换成整张姿势图，立绘、视频、表情叠加层都藏起来。各图的显示高度按眼距对齐到站姿
+   （站姿眼距 100px/900，左边 111、右边 159、趴着 137），所以脑袋大小和站着时一样。
+   左右两张的「墙」那一侧就是图片边缘：窗口贴着屏幕边放（main/pet.js 的 enterEdge），图片贴着窗口那一侧 */
+.pose {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+#pet.edge-left,
+#pet.edge-right,
+#pet[data-action='lie'] {
+  --ph: calc(var(--size) * var(--pose-h));
+  height: var(--ph);
+  width: calc(var(--ph) * var(--pose-ar));
 }
 #pet.edge-left {
-  transform: translate(calc(-50vw + var(--size) * 0.05), calc(var(--size) * 0.14)) rotate(90deg);
+  --pose-h: 0.9;
+  --pose-ar: calc(462 / 900);
+  left: 0;
+}
+#pet.edge-right {
+  --pose-h: 0.63;
+  --pose-ar: calc(628 / 900);
+  left: auto;
+  right: 0;
+}
+#pet[data-action='lie']:not(.edge-left, .edge-right) {
+  --pose-h: 0.73;
+  --pose-ar: calc(688 / 900);
+  left: calc(50% - var(--ph) * var(--pose-ar) / 2);
+}
+#pet.edge-left .poseEdgeLeft,
+#pet.edge-right .poseEdgeRight,
+#pet[data-action='lie']:not(.edge-left, .edge-right) .poseLie {
+  display: block;
+}
+#pet:is(.edge-left, .edge-right, [data-action='lie']) :is(#squash, #fx) {
+  display: none;
+}
+#pet:is(.edge-left, .edge-right, [data-action='lie']) #hit {
+  left: 0;
+  right: 0;
 }
 /* 气泡挪到脑袋上方，贴着她探进来的那一侧 */
-#stage.edge-right #top,
 #stage.edge-left #top {
-  bottom: calc(var(--pw) + var(--size) * 0.1);
+  right: auto;
+  left: calc(var(--size) * 0.1);
+  align-items: flex-start;
+  bottom: calc(var(--size) * 0.9 + 4px);
 }
 #stage.edge-right #top {
   left: auto;
-  right: calc(var(--size) * 0.12);
+  right: calc(var(--size) * 0.06);
   align-items: flex-end;
-}
-#stage.edge-left #top {
-  right: auto;
-  left: calc(var(--size) * 0.12);
-  align-items: flex-start;
+  bottom: calc(var(--size) * 0.63 + 4px);
 }
 #squash,
 #flip {

@@ -16,6 +16,7 @@ export const ACTIONS = {
   turn: { cat: 'turn', dur: 500, label: '转身' },
   // 休闲动作
   sleep: { cat: 'fun', dur: 9000, label: '打瞌睡' },
+  lie: { cat: 'fun', dur: 9000, label: '趴着看你' },
   jump: { cat: 'fun', dur: 1800, label: '蹦一蹦' },
   wave: { cat: 'fun', dur: 2400, label: '挥挥手' },
   dance: { cat: 'fun', dur: 4800, label: '跳舞' },
@@ -44,7 +45,7 @@ export const ACTIONS = {
 
 /** 右键菜单「动作」分组：分类名 → 动作名列表。 */
 export const MENU_GROUPS = {
-  日常: ['idle', 'walk', 'turn', 'stretch', 'look', 'sleep'],
+  日常: ['idle', 'walk', 'turn', 'stretch', 'look', 'sleep', 'lie'],
   玩耍: ['jump', 'wave', 'dance', 'spin', 'sing'],
   吃喝: ['eat', 'coffee', 'read'],
   回应: ['click-happy', 'click-shy', 'click-dizzy'],

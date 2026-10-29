@@ -361,21 +361,19 @@ export class Pet {
   }
 
   /**
-   * 趴到屏幕左 / 右边上：立绘横过来，下半身藏到屏幕外，只露出脑袋和肩膀从边上探进来（渲染端 #pet.edge-left / edge-right）。
-   * 窗口贴着工作区那一侧放，伸出窗口的部分自然被裁掉。待一会儿（edge.minStaySec~maxStaySec）自己下来，拖她也会下来。
+   * 趴到屏幕左 / 右边上：换成扒着屏幕边探头的姿势图，身子藏在屏幕边后面（渲染端 #pet.edge-left / edge-right）。
+   * 窗口贴着工作区那一侧放。待一会儿（edge.minStaySec~maxStaySec）自己下来，拖她也会下来。
    */
   enterEdge(side) {
     const st = this.st;
     const cfg = this.ctx.config().edge ?? {};
     const a = screen.getDisplayNearestPoint({ x: Math.round(this.center().x), y: Math.round(this.center().y) }).workArea;
-    // 横过来的身体在窗口里占的竖直范围：离窗口底边 0.05S ~ 0.05S + PW（与 pet.css 的 translate 对应）
-    const lo = this.S * 0.05;
-    const hi = lo + this.PW;
     st.mode = 'edge';
     st.edge = side;
     st.vx = st.vy = 0;
+    // 窗口贴着屏幕边；姿势图下边是在大腿处裁断的，所以总是落在地面（任务栏上沿），断口藏在任务栏后面
     st.x = side === 'right' ? a.x + a.width - this.W : a.x;
-    st.y = Math.max(a.y - (this.H - hi), Math.min(a.y + a.height - this.H + lo, st.y));
+    st.y = a.y + a.height - this.H;
     const min = (cfg.minStaySec ?? 60) * 1000;
     const max = Math.max(min, (cfg.maxStaySec ?? 240) * 1000);
     st.edgeUntil = Date.now() + min + Math.random() * (max - min);

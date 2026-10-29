@@ -61,19 +61,22 @@ window.pet.on('edge', (side) => {
   }
 });
 
-/** 点击位置 → 立绘坐标；趴在边上时人是横着的，先把点绕身体中心转回去再换算。 */
-const spritePoint = (cx, cy) => {
-  if (!edge) return toSprite(pet.getBoundingClientRect(), cx, cy, facing);
+/** 姿势图上脸的位置（两眼中点，按图片宽高的比例），点到附近算「脸蛋」，再往上算「头」。 */
+const POSE_FACE = { left: [0.476, 0.413], right: [0.525, 0.319], lie: [0.44, 0.458] };
+
+/** 点在哪个部位：站姿按立绘坐标查部位表；姿势图只分脸 / 头 / 其他（返回 null 就是「戳了一下」）。 */
+const clickPart = (cx, cy) => {
+  const pose = edge ?? (pet.dataset.action === 'lie' ? 'lie' : null);
   const r = pet.getBoundingClientRect();
-  const ox = r.left + r.width / 2;
-  const oy = r.top + r.height / 2;
-  const dx = cx - ox;
-  const dy = cy - oy;
-  // edge-right 转了 -90°，反转 +90°：(dx, dy) → (-dy, dx)；edge-left 反之
-  const [ux, uy] = edge === 'right' ? [-dy, dx] : [dy, -dx];
-  const w = pet.offsetWidth;
-  const h = pet.offsetHeight;
-  return toSprite({ left: ox - w / 2, top: oy - h / 2, width: w, height: h }, ox + ux, oy + uy, facing);
+  if (!pose) {
+    const p = toSprite(r, cx, cy, facing);
+    return hitPart(p.x, p.y);
+  }
+  const [fx, fy] = POSE_FACE[pose];
+  const u = (cx - r.left) / r.width;
+  const v = (cy - r.top) / r.height;
+  if (Math.hypot((u - fx) * r.width, (v - fy) * r.height) < r.height * 0.13) return 'face';
+  return v < fy ? 'head' : null;
 };
 
 window.pet.on('play', ({ action, facing: f }) => {
@@ -222,8 +225,7 @@ const release = () => {
   if (dragging) window.pet.dragEnd();
   else {
     // 点在哪个部位：按点下时的位置换算到立绘坐标
-    const p = spritePoint(down.cx, down.cy);
-    window.pet.click({ part: hitPart(p.x, p.y) });
+    window.pet.click({ part: clickPart(down.cx, down.cy) });
   }
   down = null;
   dragging = false;
