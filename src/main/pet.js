@@ -135,8 +135,16 @@ export class Pet {
   }
 
   // setPosition 只收 int32：Math.round(-0.3) 得到 -0 会被拒，`|| 0` 把 -0 和 NaN 都转成 0
+  // 位置和大小一起设：窗口在缩放比例不同的两块屏之间穿越时，Windows 会按新屏的比例把窗口放大 / 缩小，
+  // 只 setPosition 不会还原大小，来回几趟窗口越变越大，立绘贴着放大后的窗口底边画，人就沉到任务栏下面去了
   commitPos() {
-    if (this.alive()) this.win.setPosition(Math.round(this.st.x) || 0, Math.round(this.st.y) || 0);
+    if (!this.alive()) return;
+    const want = { x: Math.round(this.st.x) || 0, y: Math.round(this.st.y) || 0, width: this.W, height: this.H };
+    this.win.setBounds(want);
+    // 跨屏那一下 Windows 可能又按新比例改了大小，再设一次
+    const b = this.win.getBounds();
+    // （125% 之类的缩放下换算会差 1px，这种不算）
+    if (Math.abs(b.width - this.W) > 2 || Math.abs(b.height - this.H) > 2) this.win.setBounds(want);
   }
 
   /** 回到出生角落（按 position 与 offsetX / offsetY）。 */
@@ -607,6 +615,8 @@ export class Pet {
       action: st.action,
       facing: st.facing,
       bounds: { x: Math.round(st.x), y: Math.round(st.y), width: this.W, height: this.H },
+      // 窗口实际的位置大小（应与 bounds 一致；不一致说明跨屏缩放把窗口改了）
+      window: this.alive() ? this.win.getBounds() : null,
       bubble: st.bubble,
       // 当前是否鼠标穿透（光标不在她身上时为 true），以及身体的可点区域（窗口内坐标）
       passthrough: this.ignoring,
