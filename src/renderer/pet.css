@@ -184,31 +184,29 @@ body {
   left: auto;
   right: 0;
 }
-#pet[data-action='lie']:not(.edge-left, .edge-right, .edge-top),
-#pet.edge-top {
+#pet[data-action='lie']:not(.edge-left, .edge-right, .edge-top) {
   --pose-h: 0.73;
   --pose-ar: calc(688 / 900);
   left: calc(50% - var(--ph) * var(--pose-ar) / 2);
 }
-/* 趴在上边框往下看：用趴着那张，画在窗口顶部（窗口顶贴着屏幕上沿） */
+/* 扒在上边框往下探头：图片顶边就是屏幕上沿（手扒在上面），画在窗口顶部（窗口顶贴着屏幕上沿）；眼距 142 */
 #pet.edge-top {
+  --pose-h: 0.7;
+  --pose-ar: calc(649 / 900);
+  left: calc(50% - var(--ph) * var(--pose-ar) / 2);
   top: 0;
   bottom: auto;
 }
 #pet.edge-left .poseEdgeLeft,
 #pet.edge-right .poseEdgeRight,
-#pet.edge-top .poseLie,
+#pet.edge-top .poseEdgeTop,
 #pet[data-action='lie']:not(.edge-left, .edge-right, .edge-top) .poseLie {
   display: block;
 }
-/* 左右两张在大腿处、上边那张在指尖处裁断：扒在半空时断口淡出，不露一刀切的边 */
+/* 左右两张在大腿处裁断：扒在半空时断口淡出，不露一刀切的边 */
 #pet:is(.edge-left, .edge-right) .pose {
   -webkit-mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
-}
-#pet.edge-top .pose {
-  -webkit-mask-image: linear-gradient(to bottom, #000 90%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 90%, transparent 100%);
 }
 #pet:is(.edge-left, .edge-right, .edge-top, [data-action='lie']) :is(#squash, #fx) {
   display: none;
@@ -220,7 +218,7 @@ body {
 /* 上边框：气泡放到她下面，尖角朝上 */
 #stage.edge-top #top {
   bottom: auto;
-  top: calc(var(--size) * 0.73 + 10px);
+  top: calc(var(--size) * 0.7 + 10px);
 }
 #stage.edge-top #bubble::after {
   top: -7px;

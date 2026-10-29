@@ -21,7 +21,7 @@ import { bodyBox } from '../shared/collision.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 /** 边框姿势图的显示高度（站姿高度 size 的倍数，按眼距对齐；与 pet.css 的 --pose-h 一致）。 */
-const POSE_H = { left: 0.9, right: 0.63, top: 0.73 };
+const POSE_H = { left: 0.9, right: 0.63, top: 0.7 };
 
 /** 读会话记录末尾 64KB，取 Claude 最新的可见思考过程（说的话 / 正在做的那一步）。 */
 const readThought = (file) => {

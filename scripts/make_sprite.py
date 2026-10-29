@@ -45,6 +45,8 @@ POSES = {
     # 趴着那张底边穿过两只手之间的背景，必须从底边抠，所以不算
     'pet-edge-left': {'src': 'edge-left.webp', 'crop': (111, 0, 1312, 1555), 'cut': ('left', 'bottom'), 'height': 900, 'pockets': False},
     'pet-edge-right': {'src': 'edge-right.webp', 'crop': (0, 0, 1214, 1555), 'cut': ('right', 'bottom'), 'height': 900, 'pockets': False},
+    # 趴在上边框往下探头：裁到那条横线（屏幕上沿）下面，手扒在线上的部分就是图片顶边
+    'pet-edge-top': {'src': 'edge-top.webp', 'crop': (0, 98, 1312, 1555), 'cut': ('top',), 'height': 900, 'pockets': False},
     'pet-lie': {'src': 'lie.webp', 'crop': (0, 0, 1312, 1555), 'cut': (), 'height': 900, 'pockets': False},
 }
 pose = sys.argv[1] if len(sys.argv) > 1 else 'pet'
