@@ -481,6 +481,15 @@ app.whenReady().then(() => {
     openSettings,
     memory: () => ({ items: memoryItems(), links: memoryLinks(), routine: routineDigest(memoryStats()) }),
     consolidate: () => consolidate(true),
+    edge: (side, id) => {
+      const p = pick(id);
+      if (!p) return false;
+      if (side === 'left' || side === 'right') {
+        if (p.st.mode === 'drag') return false;
+        p.enterEdge(side);
+      } else p.leaveEdge();
+      return true;
+    },
     throw: (vx, vy, id) => {
       const p = pick(id);
       if (!p || p.st.mode !== 'auto') return false;

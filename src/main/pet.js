@@ -285,6 +285,7 @@ export class Pet {
   /** 当前动作播完 / 被打断后选下一个。 */
   next() {
     const st = this.st;
+    if (st.mode === 'edge') return this.nextOnEdge();
     if (st.queue.length) return this.play(st.queue.shift());
     const s = this.activeStatus();
     if (s) {
@@ -330,11 +331,13 @@ export class Pet {
 
   /** 立即打断当前动作（拖拽 / 抛掷中不打断）。 */
   interrupt() {
-    if (this.st.mode === 'auto') this.next();
+    if (this.st.mode === 'auto' || this.st.mode === 'edge') this.next();
   }
 
   /** 排一个动作并立刻开始（拖拽 / 抛掷中只排队）。 */
   doAction(a) {
+    // 趴在边上时先下来，落地后再做
+    if (this.st.mode === 'edge') this.leaveEdge();
     this.st.queue = [a];
     if (this.st.mode !== 'auto') return;
     if (a === 'walk') return this.play('walk', { dur: 4000 });
@@ -346,6 +349,71 @@ export class Pet {
     this.st.vx = vx;
     this.st.vy = vy;
     this.play('fall');
+  }
+
+  // ===================== 趴在屏幕边上 =====================
+  /** 身体贴着工作区左 / 右边时返回 'left' / 'right'，否则 null。 */
+  edgeSide(margin = 30) {
+    const b = this.bounds();
+    if (this.st.x <= b.minX + margin) return 'left';
+    if (this.st.x >= b.maxX - margin) return 'right';
+    return null;
+  }
+
+  /**
+   * 趴到屏幕左 / 右边上：立绘横过来，下半身藏到屏幕外，只露出脑袋和肩膀从边上探进来（渲染端 #pet.edge-left / edge-right）。
+   * 窗口贴着工作区那一侧放，伸出窗口的部分自然被裁掉。待一会儿（edge.minStaySec~maxStaySec）自己下来，拖她也会下来。
+   */
+  enterEdge(side) {
+    const st = this.st;
+    const cfg = this.ctx.config().edge ?? {};
+    const a = screen.getDisplayNearestPoint({ x: Math.round(this.center().x), y: Math.round(this.center().y) }).workArea;
+    // 横过来的身体在窗口里占的竖直范围：离窗口底边 0.05S ~ 0.05S + PW（与 pet.css 的 translate 对应）
+    const lo = this.S * 0.05;
+    const hi = lo + this.PW;
+    st.mode = 'edge';
+    st.edge = side;
+    st.vx = st.vy = 0;
+    st.x = side === 'right' ? a.x + a.width - this.W : a.x;
+    st.y = Math.max(a.y - (this.H - hi), Math.min(a.y + a.height - this.H + lo, st.y));
+    const min = (cfg.minStaySec ?? 60) * 1000;
+    const max = Math.max(min, (cfg.maxStaySec ?? 240) * 1000);
+    st.edgeUntil = Date.now() + min + Math.random() * (max - min);
+    st.queue = [];
+    this.commitPos();
+    this.send('edge', side);
+    this.play('idle');
+  }
+
+  /** 从边上下来：恢复站姿，轻轻跳回屏幕里落地。 */
+  leaveEdge() {
+    const st = this.st;
+    if (st.mode !== 'edge') return;
+    const side = st.edge;
+    st.edge = null;
+    this.send('edge', null);
+    const b = this.bounds();
+    st.x = side === 'right' ? b.maxX : b.minX;
+    st.facing = side === 'right' ? -1 : 1;
+    this.commitPos();
+    this.startThrow(side === 'right' ? -160 : 160, -260);
+  }
+
+  /** 趴在边上时的「下一个动作」：一直趴着（只眨眼呼吸），工作状态照样更新气泡，到点就下来。 */
+  nextOnEdge() {
+    const st = this.st;
+    st.queue = [];
+    if (Date.now() >= st.edgeUntil) return this.leaveEdge();
+    const s = this.activeStatus();
+    if (s) {
+      const key = `${s.status}|${s.text}`;
+      if (key !== st.statusKey) this.say(this.statusBubble(s), 0);
+      st.statusKey = key;
+    } else if (st.statusKey) {
+      st.statusKey = '';
+      if (st.bubble) this.say('');
+    }
+    this.play('idle');
   }
 
   /** 渲染端报来的可点区域（窗口内坐标）；all = 整窗接收鼠标（拖拽中 / 对话框开着）。 */
@@ -389,6 +457,11 @@ export class Pet {
       return;
     }
 
+    if (st.mode === 'edge') {
+      if (now >= st.actionEnd) this.next();
+      return;
+    }
+
     if (st.mode === 'throw') {
       // 多屏：紧挨另一块屏的那一侧不反弹，直接飞过去；落地在当前所在屏的底边
       const r = throwStep({ x: st.x, y: st.y, vx: st.vx, vy: st.vy }, this.throwBounds(), dt, cfg.physics);
@@ -413,6 +486,12 @@ export class Pet {
       st.x += st.facing * cfg.walkSpeed * dt;
       if (st.x <= b.minX || st.x >= b.maxX) {
         st.x = Math.max(b.minX, Math.min(b.maxX, st.x));
+        const edge = cfg.edge ?? {};
+        if (edge.enabled !== false && Math.random() < (edge.walkChance ?? 0.3)) {
+          this.enterEdge(st.x <= b.minX ? 'left' : 'right');
+          this.maybeWhisper(this.ctx.config().whisper.actionChance, '你走到屏幕边上，干脆趴在边上探出头来看主人', 800);
+          return;
+        }
         st.facing = -st.facing;
         this.play('turn');
       }
@@ -431,7 +510,7 @@ export class Pet {
   /** 跟随工作状态时刷新气泡里的思考过程（hook 只在工具前后触发，中间说的话靠它跟上）。 */
   refreshThought() {
     const s = this.activeStatus();
-    if (!s || this.st.mode !== 'auto' || this.chatting) return;
+    if (!s || (this.st.mode !== 'auto' && this.st.mode !== 'edge') || this.chatting) return;
     const text = this.statusBubble(s);
     if (text !== this.st.bubble) this.say(text, 0);
   }
@@ -535,6 +614,10 @@ export class Pet {
 
   // ===================== 交互 =====================
   dragStart() {
+    if (this.st.mode === 'edge') {
+      this.st.edge = null;
+      this.send('edge', null);
+    }
     const c = screen.getCursorScreenPoint();
     this.st.grab = { dx: c.x - this.st.x, dy: c.y - this.st.y };
     this.st.vx = this.st.vy = 0;
@@ -546,12 +629,15 @@ export class Pet {
   dragEnd() {
     if (this.st.mode !== 'drag') return;
     const v = estimateReleaseVelocity(this.st.trail, Date.now(), this.ctx.config().physics.throwPower);
+    // 拎到屏幕左 / 右边上轻轻放下（不是甩出去）就趴在边上
+    const side = this.ctx.config().edge?.enabled !== false && Math.hypot(v?.vx ?? 0, v?.vy ?? 0) < 600 ? this.edgeSide() : null;
+    if (side) return this.enterEdge(side);
     this.startThrow(v?.vx ?? 0, v?.vy ?? 0);
   }
 
   /** 点哪里说哪里：每个部位有自己的情境和小反应；连续点击会告诉 Claude 碰了几下。 */
   click(info) {
-    if (this.st.mode !== 'auto') return;
+    if (this.st.mode !== 'auto' && this.st.mode !== 'edge') return;
     this.send('squash', { amount: 0.25 });
     const part = PARTS[info?.part];
     const now = Date.now();
@@ -560,7 +646,9 @@ export class Pet {
     const n = this.clickTimes.length;
     const ctx = part ? part.context : '主人戳了你一下';
     this.ctx.observe({ t: 'click', s: part?.label ?? '身体' });
-    this.whisperNow({ context: n > 1 ? `${ctx}（已经连续碰了你 ${n} 下）` : ctx, force: true });
+    const where = this.st.mode === 'edge' ? '（你正趴在屏幕边上探头）' : '';
+    this.whisperNow({ context: (n > 1 ? `${ctx}（已经连续碰了你 ${n} 下）` : ctx) + where, force: true });
+    if (this.st.mode === 'edge') return;
     this.st.queue = [part?.reaction ?? pickClick()];
     this.next();
   }
@@ -612,6 +700,7 @@ export class Pet {
       id: this.id,
       name: this.name,
       mode: st.mode,
+      edge: st.edge ?? null,
       action: st.action,
       facing: st.facing,
       bounds: { x: Math.round(st.x), y: Math.round(st.y), width: this.W, height: this.H },

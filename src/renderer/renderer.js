@@ -51,6 +51,31 @@ const probeVideos = async (map) => {
   return Object.fromEntries(entries);
 };
 
+// ===================== 趴在屏幕边上 =====================
+let edge = null;
+window.pet.on('edge', (side) => {
+  edge = side;
+  for (const el of [pet, $('stage')]) {
+    el.classList.toggle('edge-left', side === 'left');
+    el.classList.toggle('edge-right', side === 'right');
+  }
+});
+
+/** 点击位置 → 立绘坐标；趴在边上时人是横着的，先把点绕身体中心转回去再换算。 */
+const spritePoint = (cx, cy) => {
+  if (!edge) return toSprite(pet.getBoundingClientRect(), cx, cy, facing);
+  const r = pet.getBoundingClientRect();
+  const ox = r.left + r.width / 2;
+  const oy = r.top + r.height / 2;
+  const dx = cx - ox;
+  const dy = cy - oy;
+  // edge-right 转了 -90°，反转 +90°：(dx, dy) → (-dy, dx)；edge-left 反之
+  const [ux, uy] = edge === 'right' ? [-dy, dx] : [dy, -dx];
+  const w = pet.offsetWidth;
+  const h = pet.offsetHeight;
+  return toSprite({ left: ox - w / 2, top: oy - h / 2, width: w, height: h }, ox + ux, oy + uy, facing);
+};
+
 window.pet.on('play', ({ action, facing: f }) => {
   if (f !== facing) {
     facing = f;
@@ -197,7 +222,7 @@ const release = () => {
   if (dragging) window.pet.dragEnd();
   else {
     // 点在哪个部位：按点下时的位置换算到立绘坐标
-    const p = toSprite(pet.getBoundingClientRect(), down.cx, down.cy, facing);
+    const p = spritePoint(down.cx, down.cy);
     window.pet.click({ part: hitPart(p.x, p.y) });
   }
   down = null;

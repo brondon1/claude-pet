@@ -85,6 +85,7 @@ hook 脚本（`hooks/claude-pet-hook.mjs`）静默运行、1.5 秒超时、无�
 - **屏幕漫游**：朝面向方向溜达，到工作区边缘转身
 - **点击 / 拖拽 / 甩抛**：点击 Q 弹、随机做个小反应（开心 / 害羞 / 晕乎乎），并通过 Claude Code 回你一句；拖拽过阻尼弹簧跟手；甩出走抛物线、碰边反弹、落地摩擦停稳并挤压一下，摔太狠会晕
 - **多屏穿越**：甩抛时，紧挨另一块屏的那一侧（上 / 下 / 左 / 右）不反弹，直接飞过去、掉下去，最终落在最下面那块屏的地面
+- **趴在屏幕边上**：把她拎到屏幕左 / 右边轻轻放下，或者她散步走到边上时（30% 概率），她会横过来趴在边上，下半身藏到屏幕外、只露出脑袋和肩膀探进来，气泡跟着挪到脑袋上方；趴着时照样能点她、跟她聊天、显示工作状态，待 1~4 分钟自己跳下来，拖她也会下来（`edge` 配置）
 - **多开与碰撞**：可以同时养好几只（设置里「+ 添加宠物」），每只有自己的名字、大小、位置、人设、对话记忆；甩出去的宠物会和别的宠物弹性碰撞，被撞到的也会被撞飞（`physics.petCollision` 可关）
 - **设置窗口**：右键 / 托盘「设置…」，图形化改宠物列表、开关、碎碎念间隔、物理参数，保存即生效
 - **跟随 Claude Code 工作状态**：思考 / 敲代码 / 等你批准 / 整理记忆 / 庆祝 / 出错 六档动画 + 常驻气泡（见下节）
@@ -149,6 +150,7 @@ hook 脚本（`hooks/claude-pet-hook.mjs`）静默运行、1.5 秒超时、无�
 | `POST /settings` | 打开设置窗口 |
 | 任意接口加 `?pet=<id>`（或 body 里带 `pet`） | 指定哪只宠物，默认第一只 |
 | `POST /throw {vx, vy}` | 把她按给定初速度（px/s）甩出去 |
+| `POST /edge {side}` | 让她趴到屏幕边上（`left` / `right`），`null` 则下来 |
 | `POST /rename {name}` | 给她改名（与右键「给我改名字…」相同） |
 | `GET /memory` | 她记得的你：记忆条目、记忆链、作息统计摘要 |
 | `POST /memory/consolidate` | 让她立刻整理一次记忆 |
@@ -168,6 +170,7 @@ curl -s -X POST 127.0.0.1:7341/play -H "content-type: application/json" -d '{"ac
 | `autoStart` | 每次打开 Claude 桌面端或 Claude Code CLI（原生 `claude.exe`、npm 装的都算）时，桌宠没在运行就自动唤醒——之前手动退出了也会；默认开，右键「打开 Claude 时自动启动」可直接开关。由开机自启的守望进程实现，Windows 上订阅进程启动事件（一闪而过的 `claude --version` 这类不算） |
 | `pets[].size` / `position` / `offsetX` / `offsetY` | 形象高度（默认 200，与 dsh-pet 女仆等高）、初始角落与偏移 |
 | `animationWeights` / `roam` / `walkSpeed` | 动画链权重、是否溜达、散步速度 |
+| `edge` | 趴在屏幕边上：`enabled`、`walkChance`（散步走到边上时趴上去的概率，默认 0.3）、`minStaySec` / `maxStaySec`（趴多久，默认 60~240 秒） |
 | `idleAnimation` | 待机随机小动作：`{enabled, minSec, maxSec}`，每段小动作播完后隔 `minSec`~`maxSec` 秒（默认 15~45）再随机来一段；开着时小动作频率只由它决定，设置窗口里可改 |
 | `physics` | 重力、反弹系数、地面摩擦、甩出力度、宠物间碰撞 `petCollision` |
 | `workStatusEnabled` / `notificationsEnabled` / `notifyMinBusySec` / `celebrateChance` / `statusTexts` | 工作状态跟随与通知；`celebrateChance` 是完成一轮时庆祝的概率（0~1，默认 0.3，设置窗口里按百分比改） |

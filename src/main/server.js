@@ -79,6 +79,8 @@ export const startServer = (port, h) => {
           return send(200, { ok: true });
         case '/throw':
           return send(200, { ok: h.throw(Number(body.vx) || 0, Number(body.vy) || 0, pet) });
+        case '/edge':
+          return send(200, { ok: h.edge(body.side ?? null, pet) });
         case '/memory/consolidate':
           return send(200, { ok: true, result: await h.consolidate() });
         case '/rename':

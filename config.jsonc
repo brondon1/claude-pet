@@ -35,6 +35,9 @@
   // 待机时随机播一段小动作（吃饼干、吹泡泡、视频动作……）：每隔 minSec~maxSec 秒随机一次。
   // 开着时 animationWeights 里的 fun 不再生效，小动作的频率只由这里决定；enabled=false 则回到按权重随机
   "idleAnimation": { "enabled": true, "minSec": 15, "maxSec": 45 },
+  // 趴在屏幕边上：把她拎到屏幕左 / 右边轻轻放下，或者她散步走到边上时（walkChance 的概率），就横过来趴在边上、
+  // 只露出脑袋和肩膀探进来；待 minStaySec~maxStaySec 秒后自己跳下来，拖她也会下来
+  "edge": { "enabled": true, "walkChance": 0.3, "minStaySec": 60, "maxStaySec": 240 },
   // 是否在屏幕上溜达
   "roam": true,
   // 散步速度（px/s）

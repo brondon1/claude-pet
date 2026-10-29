@@ -3,7 +3,7 @@
  */
 const { contextBridge, ipcRenderer } = require('electron');
 
-const IN = ['init', 'play', 'bubble', 'squash', 'chat-open'];
+const IN = ['init', 'play', 'bubble', 'squash', 'chat-open', 'edge'];
 
 contextBridge.exposeInMainWorld('pet', {
   on: (ch, fn) => IN.includes(ch) && ipcRenderer.on(ch, (_e, p) => fn(p)),

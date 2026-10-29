@@ -151,6 +151,33 @@ body {
   left: calc(50% - var(--pw) / 2);
   width: var(--pw);
   height: var(--size);
+  transform-origin: 50% 50%;
+  transition: transform 0.35s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+
+/* 趴在屏幕边上：整个人横过来，脑袋朝屏幕里，下半身伸出窗口（窗口贴着屏幕边，伸出去的部分被裁掉）。
+   横过来后占 size × pw：右边时盒子从「窗口右边 - 0.55size」到「窗口右边 + 0.45size」，露出脑袋和上半身；
+   竖直方向底边离窗口底 0.05size（与 main/pet.js 的 enterEdge 对应） */
+#pet.edge-right {
+  transform: translate(calc(50vw - var(--size) * 0.05), calc(var(--size) * 0.14)) rotate(-90deg);
+}
+#pet.edge-left {
+  transform: translate(calc(-50vw + var(--size) * 0.05), calc(var(--size) * 0.14)) rotate(90deg);
+}
+/* 气泡挪到脑袋上方，贴着她探进来的那一侧 */
+#stage.edge-right #top,
+#stage.edge-left #top {
+  bottom: calc(var(--pw) + var(--size) * 0.1);
+}
+#stage.edge-right #top {
+  left: auto;
+  right: calc(var(--size) * 0.12);
+  align-items: flex-end;
+}
+#stage.edge-left #top {
+  right: auto;
+  left: calc(var(--size) * 0.12);
+  align-items: flex-start;
 }
 #squash,
 #flip {
